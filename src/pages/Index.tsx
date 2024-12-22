@@ -44,15 +44,40 @@ const Index = () => {
         });
         return [];
       }
-      return data;
+
+      // Convert Supabase data to Task type
+      return data.map((task): Task => ({
+        id: task.id,
+        summary: task.summary,
+        description: task.description || undefined,
+        dueDate: task.due_date,
+        estimatedDuration: task.estimated_duration,
+        priority: task.priority as "High" | "Medium" | "Low",
+        status: task.status as "To Do" | "In Progress" | "Done",
+        category: task.category,
+        externalLinks: task.external_links || undefined
+      }));
     },
     enabled: !!session?.user?.id,
   });
 
-  const handleNewTask = async (taskData) => {
-    const { data, error } = await supabase
+  const handleNewTask = async (taskData: Partial<Task>) => {
+    // Convert Task type to Supabase format
+    const supabaseTask = {
+      user_id: session.user.id,
+      summary: taskData.summary,
+      description: taskData.description,
+      due_date: taskData.dueDate,
+      estimated_duration: taskData.estimatedDuration,
+      priority: taskData.priority,
+      status: taskData.status,
+      category: taskData.category,
+      external_links: taskData.externalLinks
+    };
+
+    const { error } = await supabase
       .from('tasks')
-      .insert([{ ...taskData, user_id: session.user.id }])
+      .insert([supabaseTask])
       .select()
       .single();
 
@@ -120,7 +145,7 @@ const Index = () => {
         </div>
       </div>
       <TaskHeader onNewTask={handleNewTask} />
-      <TaskList tasks={tasks} onTaskClick={handleTaskClick} />
+      <TaskList tasks={tasks || []} onTaskClick={handleTaskClick} />
     </div>
   );
 };
