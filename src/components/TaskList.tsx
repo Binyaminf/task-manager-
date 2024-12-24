@@ -13,22 +13,15 @@ import {
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { TaskFilters } from "./TaskFilters";
+import { TaskSorting, SortField, SortOrder } from "./TaskSorting";
+import { sortTasks, filterTasks } from "@/utils/taskUtils";
 
 interface TaskListProps {
   tasks: Task[];
   onTaskClick?: (task: Task) => void;
   onTasksChange?: () => void;
 }
-
-type SortField = "dueDate" | "priority" | "status" | "category";
-type SortOrder = "asc" | "desc";
 
 export function TaskList({ tasks, onTaskClick, onTasksChange }: TaskListProps) {
   const navigate = useNavigate();
@@ -39,6 +32,11 @@ export function TaskList({ tasks, onTaskClick, onTasksChange }: TaskListProps) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+
+  // Get unique categories, statuses, and priorities for filters
+  const categories = useMemo(() => ["all", ...new Set(tasks.map(task => task.category))], [tasks]);
+  const statuses = useMemo(() => ["all", ...new Set(tasks.map(task => task.status))], [tasks]);
+  const priorities = useMemo(() => ["all", ...new Set(tasks.map(task => task.priority))], [tasks]);
 
   const handleTaskClick = (task: Task) => {
     onTaskClick?.(task);
@@ -73,116 +71,32 @@ export function TaskList({ tasks, onTaskClick, onTasksChange }: TaskListProps) {
     setTaskToDelete(null);
   };
 
-  // Get unique categories, statuses, and priorities for filters
-  const categories = useMemo(() => ["all", ...new Set(tasks.map(task => task.category))], [tasks]);
-  const statuses = useMemo(() => ["all", ...new Set(tasks.map(task => task.status))], [tasks]);
-  const priorities = useMemo(() => ["all", ...new Set(tasks.map(task => task.priority))], [tasks]);
-
   // Filter and sort tasks
   const filteredAndSortedTasks = useMemo(() => {
-    let filtered = [...tasks];
-
-    // Apply filters
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(task => task.status === statusFilter);
-    }
-    if (priorityFilter !== "all") {
-      filtered = filtered.filter(task => task.priority === priorityFilter);
-    }
-    if (categoryFilter !== "all") {
-      filtered = filtered.filter(task => task.category === categoryFilter);
-    }
-
-    // Sort tasks
-    return filtered.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case "dueDate":
-          comparison = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-          break;
-        case "priority": {
-          const priorityOrder = { High: 3, Medium: 2, Low: 1 };
-          comparison = (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0);
-          break;
-        }
-        case "status": {
-          const statusOrder = { "To Do": 1, "In Progress": 2, "Done": 3 };
-          comparison = (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
-          break;
-        }
-        case "category":
-          comparison = a.category.localeCompare(b.category);
-          break;
-      }
-      return sortOrder === "asc" ? comparison : -comparison;
-    });
+    const filtered = filterTasks(tasks, statusFilter, priorityFilter, categoryFilter);
+    return sortTasks(filtered, sortField, sortOrder);
   }, [tasks, sortField, sortOrder, statusFilter, priorityFilter, categoryFilter]);
 
   return (
     <>
       <div className="mb-6 space-y-4">
-        <div className="flex flex-wrap gap-4">
-          <Select value={sortField} onValueChange={(value: SortField) => setSortField(value)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Sort by..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="dueDate">Due Date</SelectItem>
-              <SelectItem value="priority">Priority</SelectItem>
-              <SelectItem value="status">Status</SelectItem>
-              <SelectItem value="category">Category</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={sortOrder} onValueChange={(value: SortOrder) => setSortOrder(value)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Sort order..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="asc">Ascending</SelectItem>
-              <SelectItem value="desc">Descending</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status..." />
-            </SelectTrigger>
-            <SelectContent>
-              {statuses.map(status => (
-                <SelectItem key={status} value={status}>
-                  {status === "all" ? "All Statuses" : status}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by priority..." />
-            </SelectTrigger>
-            <SelectContent>
-              {priorities.map(priority => (
-                <SelectItem key={priority} value={priority}>
-                  {priority === "all" ? "All Priorities" : priority}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by category..." />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map(category => (
-                <SelectItem key={category} value={category}>
-                  {category === "all" ? "All Categories" : category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <TaskSorting
+          sortField={sortField}
+          sortOrder={sortOrder}
+          onSortFieldChange={setSortField}
+          onSortOrderChange={setSortOrder}
+        />
+        <TaskFilters
+          statuses={statuses}
+          priorities={priorities}
+          categories={categories}
+          statusFilter={statusFilter}
+          priorityFilter={priorityFilter}
+          categoryFilter={categoryFilter}
+          onStatusChange={setStatusFilter}
+          onPriorityChange={setPriorityFilter}
+          onCategoryChange={setCategoryFilter}
+        />
       </div>
 
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
