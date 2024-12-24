@@ -9,12 +9,43 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      auth_audit_log: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
+          failed_login_attempts: number | null
           full_name: string | null
           id: string
+          last_password_change: string | null
+          locked_until: string | null
+          preferences: Json | null
           role: string
           updated_at: string
           username: string | null
@@ -22,8 +53,12 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          failed_login_attempts?: number | null
           full_name?: string | null
           id: string
+          last_password_change?: string | null
+          locked_until?: string | null
+          preferences?: Json | null
           role?: string
           updated_at?: string
           username?: string | null
@@ -31,8 +66,12 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          failed_login_attempts?: number | null
           full_name?: string | null
           id?: string
+          last_password_change?: string | null
+          locked_until?: string | null
+          preferences?: Json | null
           role?: string
           updated_at?: string
           username?: string | null
@@ -92,7 +131,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      user_role: "admin" | "manager" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
