@@ -8,12 +8,13 @@ import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
+  const queryClient = useQueryClient();
 
   // Get session on load
   supabase.auth.getSession().then(({ data: { session } }) => {
@@ -45,7 +46,6 @@ const Index = () => {
         return [];
       }
 
-      // Convert Supabase data to Task type
       return data.map((task): Task => ({
         id: task.id,
         summary: task.summary,
@@ -62,7 +62,6 @@ const Index = () => {
   });
 
   const handleNewTask = async (taskData: Partial<Task>) => {
-    // Convert Task type to Supabase format
     const supabaseTask = {
       user_id: session.user.id,
       summary: taskData.summary,
@@ -94,6 +93,13 @@ const Index = () => {
       title: "Success",
       description: "Task created successfully",
     });
+    
+    // Refresh tasks
+    queryClient.invalidateQueries({ queryKey: ['tasks', session?.user?.id] });
+  };
+
+  const handleTasksChange = () => {
+    queryClient.invalidateQueries({ queryKey: ['tasks', session?.user?.id] });
   };
 
   const handleTaskClick = (task: Task) => {
@@ -145,7 +151,11 @@ const Index = () => {
         </div>
       </div>
       <TaskHeader onNewTask={handleNewTask} />
-      <TaskList tasks={tasks || []} onTaskClick={handleTaskClick} />
+      <TaskList 
+        tasks={tasks || []} 
+        onTaskClick={handleTaskClick}
+        onTasksChange={handleTasksChange}
+      />
     </div>
   );
 };

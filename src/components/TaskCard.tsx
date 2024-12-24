@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, Clock, Link as LinkIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CalendarIcon, Clock, Link as LinkIcon, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Task {
@@ -18,9 +19,10 @@ export interface Task {
 interface TaskCardProps {
   task: Task;
   onClick?: () => void;
+  onDelete?: () => void;
 }
 
-export function TaskCard({ task, onClick }: TaskCardProps) {
+export function TaskCard({ task, onClick, onDelete }: TaskCardProps) {
   const priorityColors = {
     High: "bg-red-100 text-red-800",
     Medium: "bg-yellow-100 text-yellow-800",
@@ -33,10 +35,15 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
     Done: "bg-green-100 text-green-800",
   };
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete?.();
+  };
+
   return (
     <Card
       className={cn(
-        "p-4 hover:shadow-md transition-shadow cursor-pointer animate-task-fade-in",
+        "p-4 hover:shadow-md transition-shadow cursor-pointer animate-task-fade-in group",
         task.status === "Done" && "opacity-75"
       )}
       onClick={onClick}
@@ -44,7 +51,17 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       <div className="space-y-3">
         <div className="flex items-start justify-between">
           <h3 className="font-medium text-lg">{task.summary}</h3>
-          <Badge className={priorityColors[task.priority]}>{task.priority}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={priorityColors[task.priority]}>{task.priority}</Badge>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={handleDelete}
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </Button>
+          </div>
         </div>
 
         {task.description && (
