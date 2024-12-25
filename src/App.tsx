@@ -35,7 +35,19 @@ const TaskEditWrapper = () => {
         return [];
       }
 
-      return data as Task[];
+      // Map the snake_case database fields to camelCase Task interface
+      return data.map((task): Task => ({
+        id: task.id,
+        summary: task.summary,
+        description: task.description || undefined,
+        dueDate: task.due_date,
+        estimatedDuration: task.estimated_duration,
+        priority: task.priority as Task["priority"],
+        status: task.status as Task["status"],
+        category: task.category,
+        externalLinks: task.external_links || undefined,
+        folder_id: task.folder_id
+      }));
     },
   });
 
