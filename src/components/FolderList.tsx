@@ -18,6 +18,7 @@ export interface FolderType {
   name: string;
   description?: string;
   color: string;
+  user_id: string;
 }
 
 export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: string | null) => void }) {
@@ -45,9 +46,19 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
   });
 
   const handleFolderCreate = async (folder: Partial<FolderType>) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to create folders",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await supabase
       .from('folders')
-      .insert([folder]);
+      .insert([{ ...folder, user_id: user.id }]);
 
     if (error) {
       toast({
