@@ -137,14 +137,14 @@ export function TaskForm({ onSubmit, onCancel, initialData }: TaskFormProps) {
       <div>
         <Label>Folder</Label>
         <Select
-          value={formData.folder_id || ""}
-          onValueChange={(value) => handleSelectChange("folder_id", value)}
+          value={formData.folder_id || "none"}
+          onValueChange={(value) => handleSelectChange("folder_id", value === "none" ? null : value)}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select folder" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">No Folder</SelectItem>
+            <SelectItem value="none">No Folder</SelectItem>
             {folders?.map((folder) => (
               <SelectItem key={folder.id} value={folder.id}>
                 {folder.name}
