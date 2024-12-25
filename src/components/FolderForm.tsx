@@ -5,14 +5,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FolderType } from "./FolderList";
 
+type FolderFormData = Omit<FolderType, 'id' | 'user_id'>;
+
 interface FolderFormProps {
-  onSubmit: (folder: Partial<FolderType>) => void;
+  onSubmit: (folder: FolderFormData) => void;
   onCancel?: () => void;
-  initialData?: Partial<FolderType>;
+  initialData?: Partial<FolderFormData>;
 }
 
 export function FolderForm({ onSubmit, onCancel, initialData }: FolderFormProps) {
-  const [formData, setFormData] = useState<Partial<FolderType>>(
+  const [formData, setFormData] = useState<FolderFormData>(
     initialData || {
       name: "",
       description: "",

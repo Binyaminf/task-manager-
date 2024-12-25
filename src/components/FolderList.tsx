@@ -45,7 +45,7 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
     },
   });
 
-  const handleFolderCreate = async (folder: Partial<FolderType>) => {
+  const handleFolderCreate = async (folder: Omit<FolderType, 'id' | 'user_id'>) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast({
