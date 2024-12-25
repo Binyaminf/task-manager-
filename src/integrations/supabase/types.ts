@@ -36,6 +36,42 @@ export type Database = {
         }
         Relationships: []
       }
+      folder_hierarchy: {
+        Row: {
+          child_folder_id: string
+          created_at: string
+          id: string
+          parent_folder_id: string
+        }
+        Insert: {
+          child_folder_id: string
+          created_at?: string
+          id?: string
+          parent_folder_id: string
+        }
+        Update: {
+          child_folder_id?: string
+          created_at?: string
+          id?: string
+          parent_folder_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folder_hierarchy_child_folder_id_fkey"
+            columns: ["child_folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folder_hierarchy_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       folders: {
         Row: {
           color: string | null
@@ -108,6 +144,42 @@ export type Database = {
         }
         Relationships: []
       }
+      task_folders: {
+        Row: {
+          created_at: string
+          folder_id: string
+          id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          folder_id: string
+          id?: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          folder_id?: string
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_folders_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_folders_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           category: string
@@ -169,7 +241,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      migrate_categories_to_folders: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       user_role: "admin" | "manager" | "user"
