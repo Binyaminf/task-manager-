@@ -13,14 +13,17 @@ interface FolderFormProps {
   initialData?: Partial<FolderFormData>;
 }
 
+const defaultFormData: FolderFormData = {
+  name: "",
+  description: "",
+  color: "#94a3b8",
+};
+
 export function FolderForm({ onSubmit, onCancel, initialData }: FolderFormProps) {
-  const [formData, setFormData] = useState<FolderFormData>(
-    initialData || {
-      name: "",
-      description: "",
-      color: "#94a3b8",
-    }
-  );
+  const [formData, setFormData] = useState<FolderFormData>({
+    ...defaultFormData,
+    ...initialData,
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
