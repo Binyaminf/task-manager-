@@ -1,4 +1,14 @@
-import { useState } from "react";
+import { Calendar, Clock, ArrowRight, Edit2, Trash2 } from "lucide-react";
+import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export interface Task {
   id: string;
@@ -13,15 +23,112 @@ export interface Task {
   folder_id?: string;
 }
 
-export function TaskCard({ task, onClick, onDelete }: { task: Task; onClick: () => void; onDelete: () => void; }) {
+const getPriorityColor = (priority: Task["priority"]) => {
+  switch (priority) {
+    case "High":
+      return "bg-red-500";
+    case "Medium":
+      return "bg-yellow-500";
+    case "Low":
+      return "bg-green-500";
+    default:
+      return "bg-gray-500";
+  }
+};
+
+const getStatusColor = (status: Task["status"]) => {
+  switch (status) {
+    case "To Do":
+      return "bg-gray-500";
+    case "In Progress":
+      return "bg-blue-500";
+    case "Done":
+      return "bg-green-500";
+    default:
+      return "bg-gray-500";
+  }
+};
+
+export function TaskCard({ 
+  task, 
+  onClick, 
+  onDelete 
+}: { 
+  task: Task; 
+  onClick: () => void; 
+  onDelete: () => void; 
+}) {
   return (
-    <div className="border p-4 rounded-md shadow-sm">
-      <h3 className="text-lg font-semibold">{task.summary}</h3>
-      <p className="text-sm text-gray-600">{task.description}</p>
-      <div className="flex justify-between mt-4">
-        <button onClick={onClick} className="text-blue-500">Edit</button>
-        <button onClick={onDelete} className="text-red-500">Delete</button>
-      </div>
-    </div>
+    <Card className="w-full animate-task-fade-in">
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-lg font-semibold">{task.summary}</CardTitle>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClick}
+              className="h-8 w-8"
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onDelete}
+              className="h-8 w-8 text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="pb-2">
+        {task.description && (
+          <p className="text-sm text-muted-foreground mb-4">{task.description}</p>
+        )}
+        
+        <div className="flex flex-wrap gap-2 mb-4">
+          <Badge variant="secondary" className={`${getPriorityColor(task.priority)} text-white`}>
+            {task.priority}
+          </Badge>
+          <Badge variant="secondary" className={`${getStatusColor(task.status)} text-white`}>
+            {task.status}
+          </Badge>
+          <Badge variant="outline">{task.category}</Badge>
+        </div>
+
+        <div className="space-y-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            <span>{format(new Date(task.dueDate), 'PPP')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            <span>{task.estimatedDuration}</span>
+          </div>
+        </div>
+      </CardContent>
+
+      {task.externalLinks && task.externalLinks.length > 0 && (
+        <CardFooter className="pt-2">
+          <div className="flex flex-wrap gap-2">
+            {task.externalLinks.map((link, index) => (
+              <a
+                key={index}
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-sm text-blue-500 hover:text-blue-600"
+              >
+                Link {index + 1}
+                <ArrowRight className="h-3 w-3" />
+              </a>
+            ))}
+          </div>
+        </CardFooter>
+      )}
+    </Card>
   );
 }
