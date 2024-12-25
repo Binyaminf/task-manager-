@@ -9,12 +9,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { FolderList } from "@/components/FolderList";
 
 const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const queryClient = useQueryClient();
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
 
   // Get session on load
   supabase.auth.getSession().then(({ data: { session } }) => {
@@ -28,13 +30,21 @@ const Index = () => {
 
   // Fetch tasks for logged-in user
   const { data: tasks, isLoading } = useQuery({
-    queryKey: ['tasks', session?.user?.id],
+    queryKey: ['tasks', session?.user?.id, selectedFolder],
     queryFn: async () => {
       if (!session?.user?.id) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from('tasks')
         .select('*')
         .order('created_at', { ascending: false });
+      
+      if (selectedFolder) {
+        query = query.eq('folder_id', selectedFolder);
+      } else {
+        query = query.is('folder_id', null);
+      }
+      
+      const { data, error } = await query;
       
       if (error) {
         console.error('Error fetching tasks:', error);
@@ -64,6 +74,7 @@ const Index = () => {
   const handleNewTask = async (taskData: Partial<Task>) => {
     const supabaseTask = {
       user_id: session.user.id,
+      folder_id: selectedFolder,
       summary: taskData.summary,
       description: taskData.description,
       due_date: taskData.dueDate,
@@ -95,11 +106,11 @@ const Index = () => {
     });
     
     // Refresh tasks
-    queryClient.invalidateQueries({ queryKey: ['tasks', session?.user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['tasks', session?.user?.id, selectedFolder] });
   };
 
   const handleTasksChange = () => {
-    queryClient.invalidateQueries({ queryKey: ['tasks', session?.user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['tasks', session?.user?.id, selectedFolder] });
   };
 
   const handleTaskClick = (task: Task) => {
@@ -150,6 +161,7 @@ const Index = () => {
           </Button>
         </div>
       </div>
+      <FolderList onFolderSelect={setSelectedFolder} />
       <TaskHeader onNewTask={handleNewTask} />
       <TaskList 
         tasks={tasks || []} 

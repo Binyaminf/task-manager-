@@ -36,6 +36,36 @@ export type Database = {
         }
         Relationships: []
       }
+      folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -86,6 +116,7 @@ export type Database = {
           due_date: string
           estimated_duration: string
           external_links: string[] | null
+          folder_id: string | null
           id: string
           priority: string
           status: string
@@ -100,6 +131,7 @@ export type Database = {
           due_date: string
           estimated_duration: string
           external_links?: string[] | null
+          folder_id?: string | null
           id?: string
           priority: string
           status: string
@@ -114,6 +146,7 @@ export type Database = {
           due_date?: string
           estimated_duration?: string
           external_links?: string[] | null
+          folder_id?: string | null
           id?: string
           priority?: string
           status?: string
@@ -121,7 +154,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tasks_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

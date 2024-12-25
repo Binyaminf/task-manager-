@@ -20,6 +20,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TaskFormProps {
   onSubmit: (task: Partial<Task>) => void;
@@ -40,6 +42,22 @@ export function TaskForm({ onSubmit, onCancel, initialData }: TaskFormProps) {
       externalLinks: [],
     }
   );
+
+  const { data: folders } = useQuery({
+    queryKey: ['folders'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('folders')
+        .select('*')
+        .order('name');
+      
+      if (error) {
+        console.error('Error loading folders:', error);
+        return [];
+      }
+      return data;
+    },
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +132,26 @@ export function TaskForm({ onSubmit, onCancel, initialData }: TaskFormProps) {
             />
           </PopoverContent>
         </Popover>
+      </div>
+
+      <div>
+        <Label>Folder</Label>
+        <Select
+          value={formData.folder_id || ""}
+          onValueChange={(value) => handleSelectChange("folder_id", value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select folder" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">No Folder</SelectItem>
+            {folders?.map((folder) => (
+              <SelectItem key={folder.id} value={folder.id}>
+                {folder.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div>
