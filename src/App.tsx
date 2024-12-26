@@ -35,7 +35,6 @@ const TaskEditWrapper = () => {
         return [];
       }
 
-      // Map the snake_case database fields to camelCase Task interface
       return data.map((task): Task => ({
         id: task.id,
         summary: task.summary,
@@ -81,7 +80,6 @@ const TaskEditWrapper = () => {
       description: "Task updated successfully",
     });
     
-    // Invalidate and refetch tasks
     queryClient.invalidateQueries({ queryKey: ['tasks'] });
   };
 
@@ -91,6 +89,17 @@ const TaskEditWrapper = () => {
 };
 
 const App = () => {
+  // Configure Supabase auth with correct redirect URL
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session) {
+      const currentUrl = window.location.origin;
+      supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+    }
+  });
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
