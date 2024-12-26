@@ -14,14 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { FolderButton } from "./folder/FolderButton";
 import { FolderDeleteDialog } from "./folder/FolderDeleteDialog";
-
-export interface FolderType {
-  id: string;
-  name: string;
-  description?: string;
-  color: string;
-  user_id: string;
-}
+import { FolderType } from "./folder/types";
 
 export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: string | null) => void }) {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);

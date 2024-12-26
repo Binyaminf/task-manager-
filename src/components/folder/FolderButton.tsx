@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Folder, Trash2 } from "lucide-react";
-import { FolderType } from "./FolderList";
+import { FolderType } from "./types";
 
 interface FolderButtonProps {
   folder: FolderType;
