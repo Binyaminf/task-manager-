@@ -32,28 +32,15 @@ export function FolderDeleteDialog({
   const handleDeleteConfirm = async () => {
     if (!folderToDelete) return;
 
-    // First, update any tasks that use this folder to remove the folder_id
-    const { error: taskUpdateError } = await supabase
-      .from('tasks')
-      .update({ folder_id: null })
-      .eq('folder_id', folderToDelete.id);
-
-    if (taskUpdateError) {
-      toast({
-        title: "Error",
-        description: "Failed to update tasks",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Then delete the folder
+    // Delete the folder - tasks will automatically have their folder_id set to null
+    // due to the ON DELETE SET NULL constraint we added
     const { error: folderDeleteError } = await supabase
       .from('folders')
       .delete()
       .eq('id', folderToDelete.id);
 
     if (folderDeleteError) {
+      console.error('Error deleting folder:', folderDeleteError);
       toast({
         title: "Error",
         description: "Failed to delete folder",
