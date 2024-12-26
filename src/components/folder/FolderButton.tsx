@@ -10,13 +10,18 @@ interface FolderButtonProps {
 }
 
 export function FolderButton({ folder, isSelected, onClick, onDeleteClick }: FolderButtonProps) {
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();  // Stop event from bubbling up to parent button
+    onDeleteClick(e);
+  };
+
   return (
     <Button
       variant={isSelected ? "default" : "outline"}
       size="sm"
       onClick={onClick}
       style={{ backgroundColor: isSelected ? folder.color : 'transparent' }}
-      className="group"
+      className="group relative"
     >
       <Folder 
         className="w-4 h-4 mr-2" 
@@ -24,8 +29,8 @@ export function FolderButton({ folder, isSelected, onClick, onDeleteClick }: Fol
       />
       {folder.name}
       <Trash2
-        className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={onDeleteClick}
+        className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+        onClick={handleDeleteClick}
       />
     </Button>
   );
