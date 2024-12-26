@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { FolderForm } from "./FolderForm";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -35,6 +35,7 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [folderToDelete, setFolderToDelete] = useState<FolderType | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: folders, refetch } = useQuery({
     queryKey: ['folders'],
@@ -101,12 +102,28 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
   const handleDeleteConfirm = async () => {
     if (!folderToDelete) return;
 
-    const { error } = await supabase
+    // First, update any tasks that use this folder to remove the folder_id
+    const { error: taskUpdateError } = await supabase
+      .from('tasks')
+      .update({ folder_id: null })
+      .eq('folder_id', folderToDelete.id);
+
+    if (taskUpdateError) {
+      toast({
+        title: "Error",
+        description: "Failed to update tasks",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Then delete the folder
+    const { error: folderDeleteError } = await supabase
       .from('folders')
       .delete()
       .eq('id', folderToDelete.id);
 
-    if (error) {
+    if (folderDeleteError) {
       toast({
         title: "Error",
         description: "Failed to delete folder",
@@ -117,12 +134,17 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
         title: "Success",
         description: "Folder deleted successfully",
       });
+      
       if (selectedFolder === folderToDelete.id) {
         setSelectedFolder(null);
         onFolderSelect(null);
       }
-      refetch();
+      
+      // Invalidate both folders and tasks queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
     }
+    
     setFolderToDelete(null);
   };
 
