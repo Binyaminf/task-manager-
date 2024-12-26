@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { FolderType } from "./FolderList";
+import { FolderType } from "./folder/types";
 
 type FolderFormData = Omit<FolderType, 'id' | 'user_id'>;
 
