@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Folder, FolderPlus, Trash2 } from "lucide-react";
+import { FolderPlus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,20 +8,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { FolderForm } from "./FolderForm";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { FolderButton } from "./folder/FolderButton";
+import { FolderDeleteDialog } from "./folder/FolderDeleteDialog";
 
 export interface FolderType {
   id: string;
@@ -35,9 +27,8 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [folderToDelete, setFolderToDelete] = useState<FolderType | null>(null);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  const { data: folders, refetch } = useQuery({
+  const { data: folders } = useQuery({
     queryKey: ['folders'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -85,7 +76,6 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
       title: "Success",
       description: "Folder created successfully",
     });
-    refetch();
   };
 
   const handleFolderClick = (folderId: string) => {
@@ -97,55 +87,6 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
   const handleDeleteClick = (e: React.MouseEvent, folder: FolderType) => {
     e.stopPropagation(); // Prevent folder selection when clicking delete
     setFolderToDelete(folder);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!folderToDelete) return;
-
-    // First, update any tasks that use this folder to remove the folder_id
-    const { error: taskUpdateError } = await supabase
-      .from('tasks')
-      .update({ folder_id: null })
-      .eq('folder_id', folderToDelete.id);
-
-    if (taskUpdateError) {
-      toast({
-        title: "Error",
-        description: "Failed to update tasks",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Then delete the folder
-    const { error: folderDeleteError } = await supabase
-      .from('folders')
-      .delete()
-      .eq('id', folderToDelete.id);
-
-    if (folderDeleteError) {
-      toast({
-        title: "Error",
-        description: "Failed to delete folder",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Folder deleted successfully",
-      });
-      
-      if (selectedFolder === folderToDelete.id) {
-        setSelectedFolder(null);
-        onFolderSelect(null);
-      }
-      
-      // Invalidate both folders and tasks queries to refresh the UI
-      queryClient.invalidateQueries({ queryKey: ['folders'] });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-    }
-    
-    setFolderToDelete(null);
   };
 
   return (
@@ -169,42 +110,22 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
       </div>
       <div className="flex flex-wrap gap-2">
         {folders?.map((folder) => (
-          <Button
+          <FolderButton
             key={folder.id}
-            variant={selectedFolder === folder.id ? "default" : "outline"}
-            size="sm"
+            folder={folder}
+            isSelected={selectedFolder === folder.id}
             onClick={() => handleFolderClick(folder.id)}
-            style={{ backgroundColor: selectedFolder === folder.id ? folder.color : 'transparent' }}
-            className="group"
-          >
-            <Folder 
-              className="w-4 h-4 mr-2" 
-              style={{ color: selectedFolder === folder.id ? 'white' : folder.color }} 
-            />
-            {folder.name}
-            <Trash2
-              className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={(e) => handleDeleteClick(e, folder)}
-            />
-          </Button>
+            onDeleteClick={(e) => handleDeleteClick(e, folder)}
+          />
         ))}
       </div>
 
-      <AlertDialog open={!!folderToDelete} onOpenChange={() => setFolderToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the folder
-              "{folderToDelete?.name}" and remove it from any tasks that use it.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <FolderDeleteDialog
+        folderToDelete={folderToDelete}
+        selectedFolder={selectedFolder}
+        onFolderSelect={onFolderSelect}
+        onClose={() => setFolderToDelete(null)}
+      />
     </div>
   );
 }
