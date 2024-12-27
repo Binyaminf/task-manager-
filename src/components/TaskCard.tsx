@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 export interface Task {
   id: string;
@@ -58,77 +60,100 @@ export function TaskCard({
   onClick: () => void; 
   onDelete: () => void; 
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
-    <Card className="w-full animate-task-fade-in">
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-lg font-semibold">{task.summary}</CardTitle>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClick}
-              className="h-8 w-8"
-            >
-              <Edit2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onDelete}
-              className="h-8 w-8 text-destructive"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="pb-2">
-        {task.description && (
-          <p className="text-sm text-muted-foreground mb-4">{task.description}</p>
-        )}
-        
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Badge variant="secondary" className={`${getPriorityColor(task.priority)} text-white`}>
-            {task.priority}
-          </Badge>
-          <Badge variant="secondary" className={`${getStatusColor(task.status)} text-white`}>
-            {task.status}
-          </Badge>
-          <Badge variant="outline">{task.category}</Badge>
-        </div>
-
-        <div className="space-y-2 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            <span>{format(new Date(task.dueDate), 'PPP')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            <span>{task.estimatedDuration}</span>
-          </div>
-        </div>
-      </CardContent>
-
-      {task.externalLinks && task.externalLinks.length > 0 && (
-        <CardFooter className="pt-2">
-          <div className="flex flex-wrap gap-2">
-            {task.externalLinks.map((link, index) => (
-              <a
-                key={index}
-                href={link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-sm text-blue-500 hover:text-blue-600"
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="cursor-move"
+    >
+      <Card className="w-full animate-task-fade-in">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <CardTitle className="text-lg font-semibold">{task.summary}</CardTitle>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClick}
+                className="h-8 w-8 cursor-pointer"
               >
-                Link {index + 1}
-                <ArrowRight className="h-3 w-3" />
-              </a>
-            ))}
+                <Edit2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onDelete}
+                className="h-8 w-8 text-destructive cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </CardFooter>
-      )}
-    </Card>
+        </CardHeader>
+        
+        <CardContent className="pb-2">
+          {task.description && (
+            <p className="text-sm text-muted-foreground mb-4">{task.description}</p>
+          )}
+          
+          <div className="flex flex-wrap gap-2 mb-4">
+            <Badge variant="secondary" className={`${getPriorityColor(task.priority)} text-white`}>
+              {task.priority}
+            </Badge>
+            <Badge variant="secondary" className={`${getStatusColor(task.status)} text-white`}>
+              {task.status}
+            </Badge>
+            <Badge variant="outline">{task.category}</Badge>
+          </div>
+
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              <span>{format(new Date(task.dueDate), 'PPP')}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              <span>{task.estimatedDuration}</span>
+            </div>
+          </div>
+        </CardContent>
+
+        {task.externalLinks && task.externalLinks.length > 0 && (
+          <CardFooter className="pt-2">
+            <div className="flex flex-wrap gap-2">
+              {task.externalLinks.map((link, index) => (
+                <a
+                  key={index}
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-sm text-blue-500 hover:text-blue-600"
+                >
+                  Link {index + 1}
+                  <ArrowRight className="h-3 w-3" />
+                </a>
+              ))}
+            </div>
+          </CardFooter>
+        )}
+      </Card>
+    </div>
   );
 }

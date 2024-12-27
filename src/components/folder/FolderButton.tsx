@@ -28,15 +28,10 @@ export function FolderButton({ folder, isSelected, onClick, onDeleteClick }: Fol
     backgroundColor: isSelected ? folder.color : 'transparent',
   };
 
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onDeleteClick(e);
-  };
-
   return (
     <div 
       ref={setNodeRef}
-      className="relative inline-flex group cursor-move"
+      className="relative inline-flex group"
       style={style}
       {...attributes}
       {...listeners}
@@ -45,7 +40,7 @@ export function FolderButton({ folder, isSelected, onClick, onDeleteClick }: Fol
         variant={isSelected ? "default" : "outline"}
         size="sm"
         onClick={onClick}
-        className="pointer-events-none"
+        className="cursor-pointer"
       >
         <Folder 
           className="w-4 h-4 mr-2" 
@@ -54,7 +49,7 @@ export function FolderButton({ folder, isSelected, onClick, onDeleteClick }: Fol
         {folder.name}
         <div 
           onClick={handleDeleteClick}
-          className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center pointer-events-auto"
+          className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center"
         >
           <Trash2 className="w-4 h-4 hover:text-destructive" />
         </div>

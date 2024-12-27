@@ -16,14 +16,29 @@ import { useToast } from "@/hooks/use-toast";
 import { TaskFilters } from "./TaskFilters";
 import { TaskSorting, SortField, SortOrder } from "./TaskSorting";
 import { sortTasks, filterTasks } from "@/utils/taskUtils";
+import {
+  DndContext,
+  DragEndEvent,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
 
 interface TaskListProps {
   tasks: Task[];
   onTaskClick?: (task: Task) => void;
   onTasksChange?: () => void;
+  selectedFolder: string | null;
 }
 
-export function TaskList({ tasks, onTaskClick, onTasksChange }: TaskListProps) {
+export function TaskList({ tasks, onTaskClick, onTasksChange, selectedFolder }: TaskListProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
@@ -32,8 +47,22 @@ export function TaskList({ tasks, onTaskClick, onTasksChange }: TaskListProps) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [activeId, setActiveId] = useState<string | null>(null);
 
-  // Get unique categories, statuses, and priorities for filters
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    })
+  );
+
   const categories = useMemo(() => ["all", ...new Set(tasks.map(task => task.category))], [tasks]);
   const statuses = useMemo(() => ["all", ...new Set(tasks.map(task => task.status))], [tasks]);
   const priorities = useMemo(() => ["all", ...new Set(tasks.map(task => task.priority))], [tasks]);
@@ -71,6 +100,41 @@ export function TaskList({ tasks, onTaskClick, onTasksChange }: TaskListProps) {
     setTaskToDelete(null);
   };
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over) return;
+
+    const activeTask = tasks.find(task => task.id === active.id);
+    if (!activeTask) return;
+
+    // If dropping on a folder
+    if (over.id.toString().startsWith('folder-')) {
+      const folderId = over.id.toString().replace('folder-', '');
+      
+      const { error } = await supabase
+        .from('tasks')
+        .update({ folder_id: folderId === 'none' ? null : folderId })
+        .eq('id', activeTask.id);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to move task to folder",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Task moved to folder",
+        });
+        onTasksChange?.();
+      }
+    }
+    
+    setActiveId(null);
+  };
+
   // Filter and sort tasks
   const filteredAndSortedTasks = useMemo(() => {
     const filtered = filterTasks(tasks, statusFilter, priorityFilter, categoryFilter);
@@ -99,16 +163,36 @@ export function TaskList({ tasks, onTaskClick, onTasksChange }: TaskListProps) {
         />
       </div>
 
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {filteredAndSortedTasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            onClick={() => handleTaskClick(task)}
-            onDelete={() => handleDeleteTask(task)}
-          />
-        ))}
-      </div>
+      <DndContext 
+        sensors={sensors} 
+        onDragEnd={handleDragEnd}
+        onDragStart={(event) => setActiveId(event.active.id.toString())}
+      >
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          <SortableContext items={filteredAndSortedTasks.map(t => t.id)} strategy={rectSortingStrategy}>
+            {filteredAndSortedTasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onClick={() => handleTaskClick(task)}
+                onDelete={() => handleDeleteTask(task)}
+              />
+            ))}
+          </SortableContext>
+        </div>
+
+        <DragOverlay>
+          {activeId ? (
+            <div className="w-full max-w-sm opacity-50">
+              <TaskCard
+                task={tasks.find(t => t.id === activeId)!}
+                onClick={() => {}}
+                onDelete={() => {}}
+              />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
         <AlertDialogContent>

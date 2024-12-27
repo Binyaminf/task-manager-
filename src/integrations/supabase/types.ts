@@ -79,6 +79,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          order: number | null
           updated_at: string
           user_id: string
         }
@@ -88,6 +89,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          order?: number | null
           updated_at?: string
           user_id: string
         }
@@ -97,6 +99,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          order?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -190,6 +193,7 @@ export type Database = {
           external_links: string[] | null
           folder_id: string | null
           id: string
+          order: number | null
           priority: string
           status: string
           summary: string
@@ -205,6 +209,7 @@ export type Database = {
           external_links?: string[] | null
           folder_id?: string | null
           id?: string
+          order?: number | null
           priority: string
           status: string
           summary: string
@@ -220,6 +225,7 @@ export type Database = {
           external_links?: string[] | null
           folder_id?: string | null
           id?: string
+          order?: number | null
           priority?: string
           status?: string
           summary?: string
