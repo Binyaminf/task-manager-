@@ -48,7 +48,7 @@ export function FolderButton({ folder, isSelected, onClick, onDeleteClick }: Fol
         />
         {folder.name}
         <div 
-          onClick={handleDeleteClick}
+          onClick={onDeleteClick}
           className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center"
         >
           <Trash2 className="w-4 h-4 hover:text-destructive" />

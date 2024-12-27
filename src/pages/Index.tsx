@@ -167,6 +167,7 @@ const Index = () => {
         tasks={tasks || []} 
         onTaskClick={handleTaskClick}
         onTasksChange={handleTasksChange}
+        selectedFolder={selectedFolder}
       />
     </div>
   );
