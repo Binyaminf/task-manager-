@@ -16,27 +16,25 @@ export function FolderButton({ folder, isSelected, onClick, onDeleteClick }: Fol
   };
 
   return (
-    <div className="relative inline-flex">
+    <div className="relative inline-flex group">
       <Button
         variant={isSelected ? "default" : "outline"}
         size="sm"
         onClick={onClick}
         style={{ backgroundColor: isSelected ? folder.color : 'transparent' }}
-        className="group"
       >
         <Folder 
           className="w-4 h-4 mr-2" 
           style={{ color: isSelected ? 'white' : folder.color }} 
         />
         {folder.name}
+        <div 
+          onClick={handleDeleteClick}
+          className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center"
+        >
+          <Trash2 className="w-4 h-4 hover:text-destructive" />
+        </div>
       </Button>
-      <button
-        onClick={handleDeleteClick}
-        className="absolute right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-destructive"
-        type="button"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
     </div>
   );
 }
