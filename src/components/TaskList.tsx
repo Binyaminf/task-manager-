@@ -1,21 +1,11 @@
 import { TaskCard, Task } from "./TaskCard";
 import { useNavigate } from 'react-router-dom';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { TaskFilters } from "./TaskFilters";
-import { TaskSorting, SortField, SortOrder } from "./TaskSorting";
 import { sortTasks, filterTasks } from "@/utils/taskUtils";
+import { TaskFilterBar } from "./task/TaskFilterBar";
+import { DeleteTaskDialog } from "./task/DeleteTaskDialog";
 import {
   DndContext,
   DragEndEvent,
@@ -27,9 +17,9 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  arrayMove,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
+import { SortField, SortOrder } from "./TaskSorting";
 
 interface TaskListProps {
   tasks: Task[];
@@ -138,12 +128,9 @@ export function TaskList({ tasks, onTaskClick, onTasksChange, selectedFolder }: 
   // Filter and sort tasks
   const filteredAndSortedTasks = useMemo(() => {
     // First filter by folder
-    const folderFilteredTasks = tasks.filter(task => {
-      if (selectedFolder === null) {
-        return task.folder_id === null;
-      }
-      return task.folder_id === selectedFolder;
-    });
+    const folderFilteredTasks = selectedFolder === null ? 
+      tasks : 
+      tasks.filter(task => task.folder_id === selectedFolder);
 
     // Then apply other filters
     const filtered = filterTasks(folderFilteredTasks, statusFilter, priorityFilter, categoryFilter);
@@ -152,25 +139,21 @@ export function TaskList({ tasks, onTaskClick, onTasksChange, selectedFolder }: 
 
   return (
     <>
-      <div className="mb-6 space-y-4">
-        <TaskSorting
-          sortField={sortField}
-          sortOrder={sortOrder}
-          onSortFieldChange={setSortField}
-          onSortOrderChange={setSortOrder}
-        />
-        <TaskFilters
-          statuses={statuses}
-          priorities={priorities}
-          categories={categories}
-          statusFilter={statusFilter}
-          priorityFilter={priorityFilter}
-          categoryFilter={categoryFilter}
-          onStatusChange={setStatusFilter}
-          onPriorityChange={setPriorityFilter}
-          onCategoryChange={setCategoryFilter}
-        />
-      </div>
+      <TaskFilterBar
+        sortField={sortField}
+        sortOrder={sortOrder}
+        statusFilter={statusFilter}
+        priorityFilter={priorityFilter}
+        categoryFilter={categoryFilter}
+        statuses={statuses}
+        priorities={priorities}
+        categories={categories}
+        onSortFieldChange={setSortField}
+        onSortOrderChange={setSortOrder}
+        onStatusChange={setStatusFilter}
+        onPriorityChange={setPriorityFilter}
+        onCategoryChange={setCategoryFilter}
+      />
 
       <DndContext 
         sensors={sensors} 
@@ -203,21 +186,11 @@ export function TaskList({ tasks, onTaskClick, onTasksChange, selectedFolder }: 
         </DragOverlay>
       </DndContext>
 
-      <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the task
-              "{taskToDelete?.summary}".
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteTaskDialog
+        taskToDelete={taskToDelete}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={confirmDelete}
+      />
     </>
   );
 }
