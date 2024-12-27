@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Folder, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { FolderType } from "./types";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useDroppable } from "@dnd-kit/core";
 
 interface FolderButtonProps {
   folder: FolderType;
@@ -15,37 +16,41 @@ export function FolderButton({ folder, isSelected, onClick, onDeleteClick }: Fol
   const {
     attributes,
     listeners,
-    setNodeRef,
+    setNodeRef: setSortableRef,
     transform,
     transition,
-    isDragging,
-  } = useSortable({ id: folder.id });
+  } = useSortable({
+    id: folder.id,
+  });
+
+  const { setNodeRef: setDroppableRef } = useDroppable({
+    id: `folder-${folder.id}`,
+  });
+
+  // Combine the refs
+  const setRefs = (element: HTMLElement | null) => {
+    setSortableRef(element);
+    setDroppableRef(element);
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    backgroundColor: isSelected ? folder.color : 'transparent',
   };
 
   return (
-    <div 
-      ref={setNodeRef}
-      className="relative inline-flex group"
+    <div
+      ref={setRefs}
       style={style}
       {...attributes}
       {...listeners}
+      className="group relative"
     >
       <Button
         variant={isSelected ? "default" : "outline"}
-        size="sm"
+        className={`cursor-pointer ${isSelected ? "bg-primary" : ""}`}
         onClick={onClick}
-        className="cursor-pointer"
       >
-        <Folder 
-          className="w-4 h-4 mr-2" 
-          style={{ color: isSelected ? 'white' : folder.color }} 
-        />
         {folder.name}
         <div 
           onClick={onDeleteClick}
