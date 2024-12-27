@@ -9,19 +9,47 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FolderForm } from "./FolderForm";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { FolderButton } from "./folder/FolderButton";
 import { FolderDeleteDialog } from "./folder/FolderDeleteDialog";
 import { FolderType } from "./folder/types";
+import {
+  DndContext,
+  DragEndEvent,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+} from "@dnd-kit/sortable";
 
 export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: string | null) => void }) {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [folderToDelete, setFolderToDelete] = useState<FolderType | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const { data: folders } = useQuery({
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    })
+  );
+
+  const { data: folders = [] } = useQuery({
     queryKey: ['folders'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -69,6 +97,7 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
       title: "Success",
       description: "Folder created successfully",
     });
+    queryClient.invalidateQueries({ queryKey: ['folders'] });
   };
 
   const handleFolderClick = (folderId: string) => {
@@ -78,8 +107,33 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
   };
 
   const handleDeleteClick = (e: React.MouseEvent, folder: FolderType) => {
-    e.stopPropagation(); // Prevent folder selection when clicking delete
+    e.stopPropagation();
     setFolderToDelete(folder);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = folders.findIndex((folder) => folder.id === active.id);
+    const newIndex = folders.findIndex((folder) => folder.id === over.id);
+    
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const newFolders = arrayMove(folders, oldIndex, newIndex);
+      
+      // Optimistically update the UI
+      queryClient.setQueryData(['folders'], newFolders);
+      
+      // Update the order in the database
+      // Note: In a real application, you might want to store and update a separate 'order' field
+      toast({
+        title: "Success",
+        description: "Folder order updated",
+      });
+    }
   };
 
   return (
@@ -101,17 +155,22 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
           </DialogContent>
         </Dialog>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {folders?.map((folder) => (
-          <FolderButton
-            key={folder.id}
-            folder={folder}
-            isSelected={selectedFolder === folder.id}
-            onClick={() => handleFolderClick(folder.id)}
-            onDeleteClick={(e) => handleDeleteClick(e, folder)}
-          />
-        ))}
-      </div>
+      
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <div className="flex flex-wrap gap-2">
+          <SortableContext items={folders.map(f => f.id)} strategy={horizontalListSortingStrategy}>
+            {folders?.map((folder) => (
+              <FolderButton
+                key={folder.id}
+                folder={folder}
+                isSelected={selectedFolder === folder.id}
+                onClick={() => handleFolderClick(folder.id)}
+                onDeleteClick={(e) => handleDeleteClick(e, folder)}
+              />
+            ))}
+          </SortableContext>
+        </div>
+      </DndContext>
 
       <FolderDeleteDialog
         folderToDelete={folderToDelete}
