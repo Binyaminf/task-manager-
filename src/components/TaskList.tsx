@@ -72,7 +72,6 @@ export function TaskList({ tasks, onTaskClick, onTasksChange, selectedFolder }: 
     const activeTask = tasks.find(task => task.id === active.id);
     if (!activeTask) return;
 
-    // If dropping on a folder
     if (over.id.toString().startsWith('folder-')) {
       const folderId = over.id.toString().replace('folder-', '');
       
@@ -100,9 +99,9 @@ export function TaskList({ tasks, onTaskClick, onTasksChange, selectedFolder }: 
   // Filter and sort tasks
   const filteredAndSortedTasks = useMemo(() => {
     // First filter by folder if one is selected
-    const folderFilteredTasks = selectedFolder === null 
-      ? tasks 
-      : tasks.filter(task => task.folder_id === selectedFolder);
+    const folderFilteredTasks = selectedFolder 
+      ? tasks.filter(task => task.folder_id === selectedFolder)
+      : tasks;
 
     // Then apply other filters
     const filtered = filterTasks(folderFilteredTasks, statusFilter, priorityFilter, categoryFilter);
