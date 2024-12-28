@@ -1,24 +1,22 @@
 import { Task } from "./TaskCard";
-import { useNavigate } from 'react-router-dom';
 import { useState, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { sortTasks, filterTasks } from "@/utils/taskUtils";
 import { TaskFilterBar } from "./task/TaskFilterBar";
 import { DeleteTaskDialog } from "./task/DeleteTaskDialog";
 import { TaskGrid } from "./task/TaskGrid";
 import { DragEndEvent } from "@dnd-kit/core";
 import { SortField, SortOrder } from "./TaskSorting";
+import { useTaskFiltering } from "./task/TaskFilterLogic";
+import { useTaskOperations } from "./task/TaskOperations";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TaskListProps {
   tasks: Task[];
-  onTaskClick?: (task: Task) => void;
   onTasksChange?: () => void;
   selectedFolder: string | null;
 }
 
-export function TaskList({ tasks, onTaskClick, onTasksChange, selectedFolder }: TaskListProps) {
-  const navigate = useNavigate();
+export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps) {
   const { toast } = useToast();
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [sortField, setSortField] = useState<SortField>("dueDate");
@@ -27,14 +25,12 @@ export function TaskList({ tasks, onTaskClick, onTasksChange, selectedFolder }: 
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
+  const { handleTaskClick, handleDragEnd } = useTaskOperations(onTasksChange);
+
+  // Get unique filter options
   const categories = useMemo(() => ["all", ...new Set(tasks.map(task => task.category))], [tasks]);
   const statuses = useMemo(() => ["all", ...new Set(tasks.map(task => task.status))], [tasks]);
   const priorities = useMemo(() => ["all", ...new Set(tasks.map(task => task.priority))], [tasks]);
-
-  const handleTaskClick = (task: Task) => {
-    onTaskClick?.(task);
-    navigate(`/edit/${task.id}`);
-  };
 
   const handleDeleteTask = async (task: Task) => {
     setTaskToDelete(task);
@@ -64,7 +60,7 @@ export function TaskList({ tasks, onTaskClick, onTasksChange, selectedFolder }: 
     setTaskToDelete(null);
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEndEvent = (event: DragEndEvent) => {
     const { active, over } = event;
     
     if (!over) return;
@@ -74,39 +70,20 @@ export function TaskList({ tasks, onTaskClick, onTasksChange, selectedFolder }: 
 
     if (over.id.toString().startsWith('folder-')) {
       const folderId = over.id.toString().replace('folder-', '');
-      
-      const { error } = await supabase
-        .from('tasks')
-        .update({ folder_id: folderId === 'none' ? null : folderId })
-        .eq('id', activeTask.id);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to move task to folder",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Task moved to folder",
-        });
-        onTasksChange?.();
-      }
+      handleDragEnd(activeTask, folderId === 'none' ? null : folderId);
     }
   };
 
   // Filter and sort tasks
-  const filteredAndSortedTasks = useMemo(() => {
-    // First filter by folder if one is selected
-    const folderFilteredTasks = selectedFolder 
-      ? tasks.filter(task => task.folder_id === selectedFolder)
-      : tasks;
-
-    // Then apply other filters
-    const filtered = filterTasks(folderFilteredTasks, statusFilter, priorityFilter, categoryFilter);
-    return sortTasks(filtered, sortField, sortOrder);
-  }, [tasks, selectedFolder, sortField, sortOrder, statusFilter, priorityFilter, categoryFilter]);
+  const filteredAndSortedTasks = useTaskFiltering({
+    tasks,
+    selectedFolder,
+    sortField,
+    sortOrder,
+    statusFilter,
+    priorityFilter,
+    categoryFilter,
+  });
 
   return (
     <>
@@ -130,7 +107,7 @@ export function TaskList({ tasks, onTaskClick, onTasksChange, selectedFolder }: 
         tasks={filteredAndSortedTasks}
         onTaskClick={handleTaskClick}
         onTaskDelete={handleDeleteTask}
-        onDragEnd={handleDragEnd}
+        onDragEnd={handleDragEndEvent}
       />
 
       <DeleteTaskDialog
