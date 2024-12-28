@@ -128,9 +128,12 @@ export function TaskList({ tasks, onTaskClick, onTasksChange, selectedFolder }: 
   // Filter and sort tasks
   const filteredAndSortedTasks = useMemo(() => {
     // First filter by folder
-    const folderFilteredTasks = selectedFolder === null ? 
-      tasks : 
-      tasks.filter(task => task.folder_id === selectedFolder);
+    const folderFilteredTasks = tasks.filter(task => {
+      if (selectedFolder === null) {
+        return task.folder_id === null;
+      }
+      return task.folder_id === selectedFolder;
+    });
 
     // Then apply other filters
     const filtered = filterTasks(folderFilteredTasks, statusFilter, priorityFilter, categoryFilter);
