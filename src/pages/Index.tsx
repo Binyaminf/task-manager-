@@ -65,7 +65,8 @@ const Index = () => {
         priority: task.priority as "High" | "Medium" | "Low",
         status: task.status as "To Do" | "In Progress" | "Done",
         category: task.category,
-        externalLinks: task.external_links || undefined
+        externalLinks: task.external_links || undefined,
+        folder_id: task.folder_id
       }));
     },
     enabled: !!session?.user?.id,
@@ -113,13 +114,6 @@ const Index = () => {
     queryClient.invalidateQueries({ queryKey: ['tasks', session?.user?.id, selectedFolder] });
   };
 
-  const handleTaskClick = (task: Task) => {
-    toast({
-      title: "Task Selected",
-      description: `You clicked on "${task.summary}"`,
-    });
-  };
-
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate("/");
@@ -165,7 +159,6 @@ const Index = () => {
       <TaskHeader onNewTask={handleNewTask} />
       <TaskList 
         tasks={tasks || []} 
-        onTaskClick={handleTaskClick}
         onTasksChange={handleTasksChange}
         selectedFolder={selectedFolder}
       />
