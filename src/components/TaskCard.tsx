@@ -1,4 +1,4 @@
-import { Calendar, Clock, ArrowRight, Edit2, Trash2 } from "lucide-react";
+import { Calendar, Clock, ArrowRight, Edit2, Trash2, Folder } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +11,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Task {
   id: string;
@@ -22,7 +24,7 @@ export interface Task {
   status: "To Do" | "In Progress" | "Done";
   category: string;
   externalLinks?: string[];
-  folder_id: string | null;  // Added this to match the database schema
+  folder_id: string | null;
 }
 
 const getPriorityColor = (priority: Task["priority"]) => {
@@ -60,6 +62,26 @@ export function TaskCard({
   onClick: () => void; 
   onDelete: () => void; 
 }) {
+  const [folderName, setFolderName] = useState<string>("");
+
+  useEffect(() => {
+    const fetchFolderName = async () => {
+      if (task.folder_id) {
+        const { data, error } = await supabase
+          .from('folders')
+          .select('name')
+          .eq('id', task.folder_id)
+          .single();
+        
+        if (!error && data) {
+          setFolderName(data.name);
+        }
+      }
+    };
+
+    fetchFolderName();
+  }, [task.folder_id]);
+
   const {
     attributes,
     listeners,
@@ -120,6 +142,12 @@ export function TaskCard({
             <Badge variant="secondary" className={`${getStatusColor(task.status)} text-white`}>
               {task.status}
             </Badge>
+            {folderName && (
+              <Badge variant="outline" className="flex items-center gap-1">
+                <Folder className="h-3 w-3" />
+                {folderName}
+              </Badge>
+            )}
             <Badge variant="outline">{task.category}</Badge>
           </div>
 
