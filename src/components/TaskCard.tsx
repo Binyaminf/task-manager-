@@ -22,7 +22,7 @@ export interface Task {
   status: "To Do" | "In Progress" | "Done";
   category: string;
   externalLinks?: string[];
-  folder_id?: string;
+  folder_id: string | null;  // Added this to match the database schema
 }
 
 const getPriorityColor = (priority: Task["priority"]) => {
