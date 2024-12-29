@@ -29,22 +29,18 @@ const Index = () => {
   });
 
   // Fetch tasks for logged-in user
-  const { data: tasks, isLoading } = useQuery({
+  const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks', session?.user?.id, selectedFolder],
     queryFn: async () => {
       if (!session?.user?.id) return [];
-      let query = supabase
+
+      console.log('Fetching tasks with selectedFolder:', selectedFolder);
+      
+      const { data, error } = await supabase
         .from('tasks')
         .select('*')
+        .eq('user_id', session.user.id)
         .order('created_at', { ascending: false });
-      
-      if (selectedFolder) {
-        query = query.eq('folder_id', selectedFolder);
-      } else {
-        query = query.is('folder_id', null);
-      }
-      
-      const { data, error } = await query;
       
       if (error) {
         console.error('Error fetching tasks:', error);
@@ -55,6 +51,8 @@ const Index = () => {
         });
         return [];
       }
+
+      console.log('Fetched tasks:', data);
 
       return data.map((task): Task => ({
         id: task.id,
@@ -73,6 +71,8 @@ const Index = () => {
   });
 
   const handleNewTask = async (taskData: Partial<Task>) => {
+    if (!session?.user?.id) return;
+
     const supabaseTask = {
       user_id: session.user.id,
       folder_id: selectedFolder,
@@ -88,11 +88,10 @@ const Index = () => {
 
     const { error } = await supabase
       .from('tasks')
-      .insert([supabaseTask])
-      .select()
-      .single();
+      .insert([supabaseTask]);
 
     if (error) {
+      console.error('Error creating task:', error);
       toast({
         title: "Error",
         description: "Failed to create task",
@@ -106,7 +105,6 @@ const Index = () => {
       description: "Task created successfully",
     });
     
-    // Refresh tasks
     queryClient.invalidateQueries({ queryKey: ['tasks', session?.user?.id, selectedFolder] });
   };
 
@@ -142,6 +140,8 @@ const Index = () => {
     );
   }
 
+  console.log('Rendering tasks:', tasks, 'selectedFolder:', selectedFolder);
+
   return (
     <div className="container py-8">
       <div className="flex justify-between items-center mb-8">
@@ -158,7 +158,7 @@ const Index = () => {
       <FolderList onFolderSelect={setSelectedFolder} />
       <TaskHeader onNewTask={handleNewTask} />
       <TaskList 
-        tasks={tasks || []} 
+        tasks={tasks} 
         onTasksChange={handleTasksChange}
         selectedFolder={selectedFolder}
       />
