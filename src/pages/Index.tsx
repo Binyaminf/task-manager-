@@ -36,11 +36,17 @@ const Index = () => {
 
       console.log('Fetching tasks with selectedFolder:', selectedFolder);
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('tasks')
         .select('*')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false });
+
+      if (selectedFolder) {
+        query = query.eq('folder_id', selectedFolder);
+      }
+      
+      const { data, error } = await query;
       
       if (error) {
         console.error('Error fetching tasks:', error);
