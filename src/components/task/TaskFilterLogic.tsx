@@ -27,21 +27,27 @@ export function useTaskFiltering({
     console.log('useTaskFiltering - selectedFolder:', selectedFolder);
 
     // First filter by folder
-    const folderFilteredTasks = tasks.filter(task => {
-      console.log('Checking task:', task.id, 'folder_id:', task.folder_id, 'against selectedFolder:', selectedFolder);
-      if (selectedFolder === null) {
-        return true; // Show all tasks when no folder is selected
-      }
-      return task.folder_id === selectedFolder;
-    });
+    let filteredTasks = tasks;
+    
+    // Only filter by folder if a folder is selected
+    if (selectedFolder !== null) {
+      console.log('Filtering by folder:', selectedFolder);
+      filteredTasks = tasks.filter(task => {
+        const matches = task.folder_id === selectedFolder;
+        console.log('Task:', task.id, 'folder_id:', task.folder_id, 'matches:', matches);
+        return matches;
+      });
+    }
 
-    console.log('Folder filtered tasks:', folderFilteredTasks);
+    console.log('After folder filtering:', filteredTasks);
 
     // Then apply other filters
-    const filtered = filterTasks(folderFilteredTasks, statusFilter, priorityFilter, categoryFilter);
-    const result = sortTasks(filtered, sortField, sortOrder);
+    const filtered = filterTasks(filteredTasks, statusFilter, priorityFilter, categoryFilter);
+    console.log('After other filters:', filtered);
 
-    console.log('Final filtered and sorted tasks:', result);
+    const result = sortTasks(filtered, sortField, sortOrder);
+    console.log('Final sorted result:', result);
+
     return result;
   }, [tasks, selectedFolder, sortField, sortOrder, statusFilter, priorityFilter, categoryFilter]);
 }
