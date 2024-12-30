@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderList } from "@/components/FolderList";
+import { PriorityDashboard } from "@/components/priority-dashboard/PriorityDashboard";
 
 const Index = () => {
   const { toast } = useToast();
@@ -162,6 +163,7 @@ const Index = () => {
         </div>
       </div>
       <FolderList onFolderSelect={setSelectedFolder} />
+      <PriorityDashboard />
       <TaskHeader onNewTask={handleNewTask} />
       <TaskList 
         tasks={tasks} 
