@@ -73,18 +73,13 @@ export function PriorityDashboard() {
   const generateAISummary = async () => {
     setIsLoadingSummary(true);
     try {
-      const { data: session } = await supabase.auth.getSession();
-      const response = await fetch('/functions/v1/summarize-tasks', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
+      const response = await supabase.functions.invoke('summarize-tasks', {
+        body: { tasks: priorityTasks }
       });
 
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      if (response.error) throw new Error(response.error.message);
       
-      setAiSummary(data.summary);
+      setAiSummary(response.data.summary);
       toast({
         title: "Success",
         description: "AI summary generated successfully",
