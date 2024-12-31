@@ -37,7 +37,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o-mini',  // Using the most cost-effective model
         messages: [
           {
             role: 'system',
@@ -48,19 +48,34 @@ serve(async (req) => {
             content: prompt
           }
         ],
+        max_tokens: 300,  // Limiting response length to reduce costs
+        temperature: 0.7  // Balanced between creativity and consistency
       }),
     });
 
     if (!openAiResponse.ok) {
       const errorData = await openAiResponse.text();
       console.error('OpenAI API error:', errorData);
+      
+      // Check if it's a quota error
+      if (errorData.includes('insufficient_quota')) {
+        return new Response(
+          JSON.stringify({ 
+            error: "OpenAI API quota exceeded. Please check your OpenAI account billing status.",
+            details: "The AI summary feature requires active OpenAI API credits."
+          }), {
+          status: 402, // Payment Required
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       throw new Error(`OpenAI API error: ${errorData}`);
     }
 
     const aiResponse = await openAiResponse.json();
     console.log('OpenAI API response:', aiResponse);
 
-    if (!aiResponse.choices || !aiResponse.choices[0] || !aiResponse.choices[0].message) {
+    if (!aiResponse.choices?.[0]?.message?.content) {
       console.error('Unexpected OpenAI API response format:', aiResponse);
       throw new Error('Invalid response format from OpenAI API');
     }
