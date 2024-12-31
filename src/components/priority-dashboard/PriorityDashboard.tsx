@@ -4,11 +4,16 @@ import { Task } from "../TaskCard";
 import { addDays, isPast, parseISO } from "date-fns";
 import { PriorityTask } from "./PriorityTask";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Bell } from "lucide-react";
+import { Bell, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { Button } from "../ui/button";
 
 export function PriorityDashboard() {
   const { toast } = useToast();
+  const [aiSummary, setAiSummary] = useState<string>("");
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks'],
     queryFn: async () => {
@@ -48,40 +53,84 @@ export function PriorityDashboard() {
   // Filter and sort priority tasks
   const priorityTasks = tasks
     .filter(task => {
-      // Exclude completed tasks
       if (task.status === "Done") return false;
 
       const dueDate = parseISO(task.dueDate);
       const isWithin72Hours = dueDate <= addDays(new Date(), 3);
       const isOverdue = isPast(dueDate);
 
-      // Include tasks that are either overdue or due within 72 hours
       return isOverdue || isWithin72Hours;
     })
     .sort((a, b) => {
-      // First sort by priority
       const priorityOrder = { High: 3, Medium: 2, Low: 1 };
       const priorityDiff = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
       if (priorityDiff !== 0) return priorityDiff;
 
-      // Then sort by due date
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     })
-    .slice(0, 5); // Show maximum 5 tasks
+    .slice(0, 5);
+
+  const generateAISummary = async () => {
+    setIsLoadingSummary(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const response = await fetch('/functions/v1/summarize-tasks', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      
+      setAiSummary(data.summary);
+      toast({
+        title: "Success",
+        description: "AI summary generated successfully",
+      });
+    } catch (error) {
+      console.error('Error generating AI summary:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate AI summary",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSummary(false);
+    }
+  };
 
   if (priorityTasks.length === 0) {
-    return null; // Don't show the dashboard if there are no priority tasks
+    return null;
   }
 
   return (
     <Card className="mb-8 border-2 border-primary">
       <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-primary animate-pulse" />
-          <CardTitle className="text-xl">Priority Dashboard</CardTitle>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bell className="h-5 w-5 text-primary animate-pulse" />
+            <CardTitle className="text-xl">Priority Dashboard</CardTitle>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={generateAISummary}
+            disabled={isLoadingSummary}
+            className="flex items-center gap-2"
+          >
+            <Sparkles className="h-4 w-4" />
+            {isLoadingSummary ? "Generating..." : "AI Summary"}
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="grid gap-4">
+        {aiSummary && (
+          <div className="bg-muted p-4 rounded-lg text-sm">
+            <p className="whitespace-pre-line">{aiSummary}</p>
+          </div>
+        )}
         {priorityTasks.map((task) => (
           <PriorityTask key={task.id} task={task} />
         ))}
