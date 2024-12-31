@@ -28,7 +28,9 @@ serve(async (req) => {
       
       Format the response as a brief overview paragraph followed by key action items.`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    console.log('Sending prompt to OpenAI:', prompt);
+
+    const openAiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
@@ -49,15 +51,32 @@ serve(async (req) => {
       }),
     });
 
-    const aiResponse = await response.json();
+    if (!openAiResponse.ok) {
+      const errorData = await openAiResponse.text();
+      console.error('OpenAI API error:', errorData);
+      throw new Error(`OpenAI API error: ${errorData}`);
+    }
+
+    const aiResponse = await openAiResponse.json();
+    console.log('OpenAI API response:', aiResponse);
+
+    if (!aiResponse.choices || !aiResponse.choices[0] || !aiResponse.choices[0].message) {
+      console.error('Unexpected OpenAI API response format:', aiResponse);
+      throw new Error('Invalid response format from OpenAI API');
+    }
+
     const summary = aiResponse.choices[0].message.content;
 
     return new Response(JSON.stringify({ summary }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Error in summarize-tasks function:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: error.message,
+        details: 'Check the function logs for more information'
+      }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
