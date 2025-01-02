@@ -74,6 +74,7 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
           description: "Task created successfully",
         });
         
+        // Reset the input field after successful task creation
         setInput("");
         onTaskCreated();
       }
