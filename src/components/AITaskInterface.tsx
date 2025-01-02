@@ -34,7 +34,7 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
       console.log('Sending request to Edge Function with text:', input.trim());
       
       const { data, error } = await supabase.functions.invoke('process-task-text', {
-        body: { text: input.trim() }
+        body: JSON.stringify({ text: input.trim() })
       });
 
       if (error) {
