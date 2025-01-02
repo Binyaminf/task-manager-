@@ -13,25 +13,15 @@ serve(async (req) => {
   }
 
   try {
-    // Log the raw request body for debugging
-    const rawBody = await req.text();
-    console.log('Raw request body:', rawBody);
+    // Parse the request body
+    const body = await req.json();
+    console.log('Received request body:', body);
 
-    // Parse the JSON body
-    let body;
-    try {
-      body = JSON.parse(rawBody);
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      throw new Error(`Invalid JSON in request body: ${parseError.message}`);
+    if (!body || !body.text || typeof body.text !== 'string') {
+      throw new Error('Invalid or missing text in request body');
     }
 
     const { text } = body;
-    
-    if (!text || typeof text !== 'string') {
-      throw new Error('Invalid or missing text in request body');
-    }
-    
     console.log('Processing text:', text);
 
     // Initialize Hugging Face API

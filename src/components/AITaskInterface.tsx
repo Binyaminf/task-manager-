@@ -34,7 +34,7 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
       console.log('Sending request to Edge Function with text:', input.trim());
       
       const { data, error } = await supabase.functions.invoke('process-task-text', {
-        body: JSON.stringify({ text: input.trim() }),
+        body: { text: input.trim() },
         headers: {
           'Content-Type': 'application/json',
         }
@@ -52,14 +52,11 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
       }
 
       if (data.type === 'search') {
-        // Handle search results
         toast({
           title: "Search Results",
           description: `Found ${data.results.length} matching tasks`,
         });
-        // You can add additional handling of search results here
       } else if (data.type === 'create') {
-        // Create new task
         const { error: createError } = await supabase
           .from('tasks')
           .insert([{
