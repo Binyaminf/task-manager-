@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderList } from "@/components/FolderList";
 import { PriorityDashboard } from "@/components/priority-dashboard/PriorityDashboard";
+import { AITaskInterface } from "@/components/AITaskInterface";
 
 const Index = () => {
   const { toast } = useToast();
@@ -147,8 +148,6 @@ const Index = () => {
     );
   }
 
-  console.log('Rendering tasks:', tasks, 'selectedFolder:', selectedFolder);
-
   return (
     <div className="container py-8">
       <div className="flex justify-between items-center mb-8">
@@ -164,6 +163,7 @@ const Index = () => {
       </div>
       <FolderList onFolderSelect={setSelectedFolder} />
       <PriorityDashboard />
+      <AITaskInterface onTaskCreated={handleTasksChange} />
       <TaskHeader onNewTask={handleNewTask} />
       <TaskList 
         tasks={tasks} 
