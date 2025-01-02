@@ -7,12 +7,14 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     const { text } = await req.json()
+    console.log('Processing text:', text);
 
     // Initialize Hugging Face API
     const HUGGING_FACE_API = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
@@ -31,6 +33,8 @@ serve(async (req) => {
     })
 
     const classification = await response.json()
+    console.log('Classification result:', classification);
+    
     const isSearch = classification.labels[0] === "search query"
 
     if (isSearch) {
@@ -70,6 +74,7 @@ serve(async (req) => {
       })
 
       const entities = await nerResponse.json()
+      console.log('NER entities:', entities);
       
       // Process entities to extract task information
       const task = {
@@ -91,6 +96,7 @@ serve(async (req) => {
       )
     }
   } catch (error) {
+    console.error('Error processing request:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 

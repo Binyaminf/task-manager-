@@ -33,10 +33,18 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
       }
 
       const { data, error } = await supabase.functions.invoke('process-task-text', {
-        body: { text: input }
+        body: { text: input },
+        headers: {
+          'Content-Type': 'application/json',
+        }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error from Edge Function:', error);
+        throw error;
+      }
+
+      console.log('Edge Function response:', data);
 
       if (data.type === 'search') {
         // Handle search results
@@ -74,7 +82,7 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
       console.error('Error processing AI request:', error);
       toast({
         title: "Error",
-        description: "Failed to process your request",
+        description: "Failed to process your request. Please try again.",
         variant: "destructive",
       });
     } finally {
