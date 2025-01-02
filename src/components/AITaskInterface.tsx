@@ -4,7 +4,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Task } from "./TaskCard";
 
 interface AITaskInterfaceProps {
   onTaskCreated: () => void;
@@ -32,10 +31,10 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
         throw new Error("User not authenticated");
       }
 
-      console.log('Sending request to Edge Function with text:', input);
+      console.log('Sending request to Edge Function with text:', input.trim());
       
       const { data, error } = await supabase.functions.invoke('process-task-text', {
-        body: { text: input.trim() },
+        body: JSON.stringify({ text: input.trim() }),
         headers: {
           'Content-Type': 'application/json',
         }

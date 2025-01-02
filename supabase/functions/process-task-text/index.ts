@@ -13,18 +13,29 @@ serve(async (req) => {
   }
 
   try {
-    // Ensure proper JSON parsing
-    const body = await req.json()
-    const text = body.text
+    // Log the raw request body for debugging
+    const rawBody = await req.text();
+    console.log('Raw request body:', rawBody);
+
+    // Parse the JSON body
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      throw new Error(`Invalid JSON in request body: ${parseError.message}`);
+    }
+
+    const { text } = body;
     
     if (!text || typeof text !== 'string') {
-      throw new Error('Invalid or missing text in request body')
+      throw new Error('Invalid or missing text in request body');
     }
     
-    console.log('Processing text:', text)
+    console.log('Processing text:', text);
 
     // Initialize Hugging Face API
-    const HUGGING_FACE_API = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
+    const HUGGING_FACE_API = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
     const response = await fetch(HUGGING_FACE_API, {
       method: "POST",
       headers: {
@@ -37,23 +48,23 @@ serve(async (req) => {
           candidate_labels: ["search query", "task creation"]
         }
       })
-    })
+    });
 
     if (!response.ok) {
-      throw new Error(`Hugging Face API error: ${response.statusText}`)
+      throw new Error(`Hugging Face API error: ${response.statusText}`);
     }
 
-    const classification = await response.json()
-    console.log('Classification result:', classification)
+    const classification = await response.json();
+    console.log('Classification result:', classification);
     
-    const isSearch = classification.labels[0] === "search query"
+    const isSearch = classification.labels[0] === "search query";
 
     if (isSearch) {
       // Process as search query
       const supabase = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      )
+      );
 
       const { data: searchResults, error } = await supabase
         .from('tasks')
@@ -61,9 +72,9 @@ serve(async (req) => {
         .textSearch('summary', text, {
           type: 'websearch',
           config: 'english'
-        })
+        });
 
-      if (error) throw error
+      if (error) throw error;
 
       return new Response(
         JSON.stringify({
@@ -76,7 +87,7 @@ serve(async (req) => {
             'Content-Type': 'application/json' 
           } 
         }
-      )
+      );
     } else {
       // Process as task creation
       // Use Hugging Face for NER to extract task details
@@ -87,14 +98,14 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ inputs: text })
-      })
+      });
 
       if (!nerResponse.ok) {
-        throw new Error(`NER API error: ${nerResponse.statusText}`)
+        throw new Error(`NER API error: ${nerResponse.statusText}`);
       }
 
-      const entities = await nerResponse.json()
-      console.log('NER entities:', entities)
+      const entities = await nerResponse.json();
+      console.log('NER entities:', entities);
       
       // Process entities to extract task information
       const task = {
@@ -105,7 +116,7 @@ serve(async (req) => {
           ? 'High' 
           : 'Medium',
         category: 'General'
-      }
+      };
 
       return new Response(
         JSON.stringify({
@@ -118,10 +129,10 @@ serve(async (req) => {
             'Content-Type': 'application/json' 
           } 
         }
-      )
+      );
     }
   } catch (error) {
-    console.error('Error processing request:', error)
+    console.error('Error processing request:', error);
     return new Response(
       JSON.stringify({ 
         error: error.message,
@@ -134,6 +145,6 @@ serve(async (req) => {
           'Content-Type': 'application/json' 
         }
       }
-    )
+    );
   }
-})
+});
