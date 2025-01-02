@@ -13,16 +13,48 @@ serve(async (req) => {
   }
 
   try {
-    // Parse the request body
-    const body = await req.json();
-    console.log('Received request body:', body);
+    // Log the raw request for debugging
+    const rawBody = await req.text();
+    console.log('Raw request body:', rawBody);
 
-    if (!body || !body.text || typeof body.text !== 'string') {
-      throw new Error('Invalid or missing text in request body');
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch (error) {
+      console.error('Failed to parse request body:', error);
+      return new Response(
+        JSON.stringify({
+          error: 'Invalid JSON in request body',
+          details: error.message,
+          receivedBody: rawBody
+        }),
+        { 
+          status: 400,
+          headers: { 
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
     }
 
-    const { text } = body;
-    console.log('Processing text:', text);
+    if (!body?.text || typeof body.text !== 'string') {
+      return new Response(
+        JSON.stringify({
+          error: 'Missing or invalid text field',
+          receivedBody: body
+        }),
+        { 
+          status: 400,
+          headers: { 
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    }
+
+    console.log('Processing text:', body.text);
 
     // Initialize Hugging Face API
     const HUGGING_FACE_API = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
@@ -33,7 +65,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        inputs: text,
+        inputs: body.text,
         parameters: {
           candidate_labels: ["search query", "task creation"]
         }
@@ -59,7 +91,7 @@ serve(async (req) => {
       const { data: searchResults, error } = await supabase
         .from('tasks')
         .select('*')
-        .textSearch('summary', text, {
+        .textSearch('summary', body.text, {
           type: 'websearch',
           config: 'english'
         });
@@ -80,14 +112,13 @@ serve(async (req) => {
       );
     } else {
       // Process as task creation
-      // Use Hugging Face for NER to extract task details
       const nerResponse = await fetch("https://api-inference.huggingface.co/models/dslim/bert-base-NER", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${Deno.env.get('HUGGING_FACE_ACCESS_TOKEN')}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ inputs: text })
+        body: JSON.stringify({ inputs: body.text })
       });
 
       if (!nerResponse.ok) {
@@ -97,12 +128,11 @@ serve(async (req) => {
       const entities = await nerResponse.json();
       console.log('NER entities:', entities);
       
-      // Process entities to extract task information
       const task = {
-        summary: text.split('.')[0], // Use first sentence as summary
-        description: text,
+        summary: body.text.split('.')[0], // Use first sentence as summary
+        description: body.text,
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Default to 1 week
-        priority: text.toLowerCase().includes('urgent') || text.toLowerCase().includes('high priority') 
+        priority: body.text.toLowerCase().includes('urgent') || body.text.toLowerCase().includes('high priority') 
           ? 'High' 
           : 'Medium',
         category: 'General'
@@ -129,7 +159,7 @@ serve(async (req) => {
         details: error.stack
       }),
       { 
-        status: 400,
+        status: 500,
         headers: { 
           ...corsHeaders, 
           'Content-Type': 'application/json' 
