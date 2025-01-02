@@ -13,8 +13,15 @@ serve(async (req) => {
   }
 
   try {
-    const { text } = await req.json()
-    console.log('Processing text:', text);
+    // Ensure proper JSON parsing
+    const body = await req.json()
+    const text = body.text
+    
+    if (!text || typeof text !== 'string') {
+      throw new Error('Invalid or missing text in request body')
+    }
+    
+    console.log('Processing text:', text)
 
     // Initialize Hugging Face API
     const HUGGING_FACE_API = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
@@ -32,8 +39,12 @@ serve(async (req) => {
       })
     })
 
+    if (!response.ok) {
+      throw new Error(`Hugging Face API error: ${response.statusText}`)
+    }
+
     const classification = await response.json()
-    console.log('Classification result:', classification);
+    console.log('Classification result:', classification)
     
     const isSearch = classification.labels[0] === "search query"
 
@@ -59,7 +70,12 @@ serve(async (req) => {
           type: 'search',
           results: searchResults
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
       )
     } else {
       // Process as task creation
@@ -73,8 +89,12 @@ serve(async (req) => {
         body: JSON.stringify({ inputs: text })
       })
 
+      if (!nerResponse.ok) {
+        throw new Error(`NER API error: ${nerResponse.statusText}`)
+      }
+
       const entities = await nerResponse.json()
-      console.log('NER entities:', entities);
+      console.log('NER entities:', entities)
       
       // Process entities to extract task information
       const task = {
@@ -92,16 +112,27 @@ serve(async (req) => {
           type: 'create',
           task
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
       )
     }
   } catch (error) {
-    console.error('Error processing request:', error);
+    console.error('Error processing request:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack
+      }),
       { 
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        }
       }
     )
   }

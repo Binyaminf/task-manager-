@@ -32,8 +32,10 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
         throw new Error("User not authenticated");
       }
 
+      console.log('Sending request to Edge Function with text:', input);
+      
       const { data, error } = await supabase.functions.invoke('process-task-text', {
-        body: { text: input },
+        body: { text: input.trim() },
         headers: {
           'Content-Type': 'application/json',
         }
@@ -45,6 +47,10 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
       }
 
       console.log('Edge Function response:', data);
+
+      if (!data) {
+        throw new Error('No data received from Edge Function');
+      }
 
       if (data.type === 'search') {
         // Handle search results
@@ -82,7 +88,7 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
       console.error('Error processing AI request:', error);
       toast({
         title: "Error",
-        description: "Failed to process your request. Please try again.",
+        description: error.message || "Failed to process your request. Please try again.",
         variant: "destructive",
       });
     } finally {
