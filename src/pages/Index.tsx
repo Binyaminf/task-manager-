@@ -12,6 +12,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderList } from "@/components/FolderList";
 import { PriorityDashboard } from "@/components/priority-dashboard/PriorityDashboard";
 import { AITaskInterface } from "@/components/AITaskInterface";
+import { LogOut, User } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Index = () => {
   const { toast } = useToast();
@@ -149,27 +156,60 @@ const Index = () => {
   }
 
   return (
-    <div className="container py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Task Manager</h1>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">
-            {session.user.email}
-          </span>
-          <Button variant="outline" onClick={handleSignOut}>
-            Sign Out
-          </Button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b">
+        <div className="container mx-auto py-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-gray-900">Task Manager</h1>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="gap-2">
+                  <User className="h-4 w-4" />
+                  <span className="text-sm text-gray-600">{session.user.email}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleSignOut} className="gap-2">
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-      </div>
-      <FolderList onFolderSelect={setSelectedFolder} />
-      <PriorityDashboard />
-      <AITaskInterface onTaskCreated={handleTasksChange} />
-      <TaskHeader onNewTask={handleNewTask} />
-      <TaskList 
-        tasks={tasks} 
-        onTasksChange={handleTasksChange}
-        selectedFolder={selectedFolder}
-      />
+      </header>
+
+      <main className="container mx-auto py-8 px-4">
+        <div className="space-y-8">
+          {/* Priority Dashboard */}
+          <section className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-lg font-semibold mb-4">Priority Overview</h2>
+            <PriorityDashboard />
+          </section>
+
+          {/* AI Task Interface */}
+          <section className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-lg font-semibold mb-4">AI Task Assistant</h2>
+            <AITaskInterface onTaskCreated={handleTasksChange} />
+          </section>
+
+          {/* Task Management */}
+          <section className="bg-white rounded-lg shadow-sm p-6">
+            <TaskHeader onNewTask={handleNewTask} />
+            <div className="mt-6">
+              <FolderList onFolderSelect={setSelectedFolder} />
+            </div>
+            <div className="mt-6">
+              <TaskList 
+                tasks={tasks} 
+                onTasksChange={handleTasksChange}
+                selectedFolder={selectedFolder}
+              />
+            </div>
+          </section>
+        </div>
+      </main>
     </div>
   );
 };
