@@ -1,60 +1,19 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Log the raw request for debugging
-    const rawBody = await req.text();
-    console.log('Raw request body:', rawBody);
-
-    let body;
-    try {
-      body = JSON.parse(rawBody);
-    } catch (error) {
-      console.error('Failed to parse request body:', error);
-      return new Response(
-        JSON.stringify({
-          error: 'Invalid JSON in request body',
-          details: error.message,
-          receivedBody: rawBody
-        }),
-        { 
-          status: 400,
-          headers: { 
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-    }
-
-    if (!body?.text || typeof body.text !== 'string') {
-      return new Response(
-        JSON.stringify({
-          error: 'Missing or invalid text field',
-          receivedBody: body
-        }),
-        { 
-          status: 400,
-          headers: { 
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-    }
-
-    console.log('Processing text:', body.text);
+    const { text } = await req.json();
+    console.log('Processing text:', text);
 
     // Initialize Hugging Face API
     const HUGGING_FACE_API = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
@@ -65,7 +24,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        inputs: body.text,
+        inputs: text,
         parameters: {
           candidate_labels: ["search query", "task creation"]
         }
@@ -82,16 +41,10 @@ serve(async (req) => {
     const isSearch = classification.labels[0] === "search query";
 
     if (isSearch) {
-      // Process as search query
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      );
-
       const { data: searchResults, error } = await supabase
         .from('tasks')
         .select('*')
-        .textSearch('summary', body.text, {
+        .textSearch('summary', text, {
           type: 'websearch',
           config: 'english'
         });
@@ -103,67 +56,109 @@ serve(async (req) => {
           type: 'search',
           results: searchResults
         }),
-        { 
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'application/json' 
-          } 
-        }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else {
-      // Process as task creation
-      const nerResponse = await fetch("https://api-inference.huggingface.co/models/dslim/bert-base-NER", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${Deno.env.get('HUGGING_FACE_ACCESS_TOKEN')}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ inputs: body.text })
-      });
+      // Extract priority keywords
+      const priorityKeywords = {
+        high: ['urgent', 'asap', 'important', 'critical', 'high priority'],
+        low: ['low priority', 'whenever possible', 'not urgent', 'can wait']
+      };
 
-      if (!nerResponse.ok) {
-        throw new Error(`NER API error: ${nerResponse.statusText}`);
+      // Extract category keywords
+      const categoryKeywords = {
+        'Meeting': ['meet', 'meeting', 'conference', 'call'],
+        'Development': ['code', 'develop', 'programming', 'debug', 'feature'],
+        'Planning': ['plan', 'strategy', 'roadmap', 'outline'],
+        'Research': ['research', 'investigate', 'study', 'analyze'],
+        'Documentation': ['document', 'write', 'draft', 'report']
+      };
+
+      // Determine priority
+      const textLower = text.toLowerCase();
+      let priority = 'Medium';
+      
+      if (priorityKeywords.high.some(keyword => textLower.includes(keyword))) {
+        priority = 'High';
+      } else if (priorityKeywords.low.some(keyword => textLower.includes(keyword))) {
+        priority = 'Low';
       }
 
-      const entities = await nerResponse.json();
-      console.log('NER entities:', entities);
-      
-      const task = {
-        summary: body.text.split('.')[0], // Use first sentence as summary
-        description: body.text,
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Default to 1 week
-        priority: body.text.toLowerCase().includes('urgent') || body.text.toLowerCase().includes('high priority') 
-          ? 'High' 
-          : 'Medium',
-        category: 'General'
+      // Determine category
+      let category = 'General';
+      for (const [cat, keywords] of Object.entries(categoryKeywords)) {
+        if (keywords.some(keyword => textLower.includes(keyword))) {
+          category = cat;
+          break;
+        }
+      }
+
+      // Extract date using regex patterns
+      const datePatterns = {
+        tomorrow: /\btomorrow\b/i,
+        nextWeek: /\bnext week\b/i,
+        specificDate: /\bon ([A-Za-z]+ \d{1,2}(?:st|nd|rd|th)?)\b/i,
+        daysFromNow: /\bin (\d+) days?\b/i
       };
+
+      let dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 7); // Default to one week
+
+      if (datePatterns.tomorrow.test(text)) {
+        dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 1);
+      } else if (datePatterns.nextWeek.test(text)) {
+        dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 7);
+      } else if (datePatterns.daysFromNow.test(text)) {
+        const matches = text.match(datePatterns.daysFromNow);
+        if (matches && matches[1]) {
+          const days = parseInt(matches[1]);
+          dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + days);
+        }
+      }
+
+      // Extract duration using regex
+      const durationPattern = /(\d+)\s*(h|hour|hours|d|day|days)/i;
+      let estimatedDuration = '1h';
+      const durationMatch = text.match(durationPattern);
+      if (durationMatch) {
+        const amount = durationMatch[1];
+        const unit = durationMatch[2].toLowerCase();
+        if (unit.startsWith('h')) {
+          estimatedDuration = `${amount}h`;
+        } else if (unit.startsWith('d')) {
+          estimatedDuration = `${amount}d`;
+        }
+      }
+
+      const task = {
+        summary: text.split('.')[0], // Use first sentence as summary
+        description: text,
+        dueDate: dueDate.toISOString(),
+        priority,
+        category,
+        estimatedDuration
+      };
+
+      console.log('Created task:', task);
 
       return new Response(
         JSON.stringify({
           type: 'create',
           task
         }),
-        { 
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'application/json' 
-          } 
-        }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
   } catch (error) {
     console.error('Error processing request:', error);
     return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        details: error.stack
-      }),
+      JSON.stringify({ error: error.message }),
       { 
         status: 500,
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }

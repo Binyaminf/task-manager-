@@ -61,10 +61,10 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
             summary: data.task.summary,
             description: data.task.description,
             due_date: data.task.dueDate,
-            estimated_duration: data.task.estimatedDuration || "1h",
-            priority: data.task.priority || "Medium",
+            estimated_duration: data.task.estimatedDuration,
+            priority: data.task.priority,
             status: "To Do",
-            category: data.task.category || "General"
+            category: data.task.category
           }]);
 
         if (createError) throw createError;
@@ -74,7 +74,6 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
           description: "Task created successfully",
         });
         
-        // Reset the input field after successful task creation
         setInput("");
         onTaskCreated();
       }
@@ -93,7 +92,11 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
   return (
     <div className="space-y-4 mb-8">
       <Textarea
-        placeholder="Enter your task or search query in natural language... (e.g., 'Create a high priority task for reviewing the project proposal by next Friday' or 'Find all urgent tasks about meetings')"
+        placeholder="Enter your task naturally... Examples:
+• Create a high priority task to review the project proposal by next Friday
+• Schedule a meeting with the team tomorrow that will take 2 hours
+• Research new technologies for the next sprint in 3 days
+• Document the API changes by next week"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         className="min-h-[100px]"
