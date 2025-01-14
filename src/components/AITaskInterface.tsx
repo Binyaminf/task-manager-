@@ -31,10 +31,15 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
         throw new Error("User not authenticated");
       }
 
+      const currentTime = new Date().toISOString();
       console.log('Sending request to Edge Function with text:', input.trim());
+      console.log('Current time reference:', currentTime);
       
       const { data, error } = await supabase.functions.invoke('process-task-text', {
-        body: { text: input.trim() }
+        body: { 
+          text: input.trim(),
+          currentTime: currentTime
+        }
       });
 
       if (error) {

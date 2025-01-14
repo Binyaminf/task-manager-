@@ -12,8 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    const { text } = await req.json();
+    const { text, currentTime } = await req.json();
     console.log('Processing text:', text);
+    console.log('Current time reference:', currentTime);
 
     // Initialize Hugging Face API
     const HUGGING_FACE_API = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
@@ -93,6 +94,9 @@ serve(async (req) => {
         }
       }
 
+      // Parse the current time
+      const now = new Date(currentTime);
+
       // Extract date using regex patterns
       const datePatterns = {
         tomorrow: /\btomorrow\b/i,
@@ -101,20 +105,20 @@ serve(async (req) => {
         daysFromNow: /\bin (\d+) days?\b/i
       };
 
-      let dueDate = new Date();
+      let dueDate = new Date(now);
       dueDate.setDate(dueDate.getDate() + 7); // Default to one week
 
       if (datePatterns.tomorrow.test(text)) {
-        dueDate = new Date();
+        dueDate = new Date(now);
         dueDate.setDate(dueDate.getDate() + 1);
       } else if (datePatterns.nextWeek.test(text)) {
-        dueDate = new Date();
+        dueDate = new Date(now);
         dueDate.setDate(dueDate.getDate() + 7);
       } else if (datePatterns.daysFromNow.test(text)) {
         const matches = text.match(datePatterns.daysFromNow);
         if (matches && matches[1]) {
           const days = parseInt(matches[1]);
-          dueDate = new Date();
+          dueDate = new Date(now);
           dueDate.setDate(dueDate.getDate() + days);
         }
       }
