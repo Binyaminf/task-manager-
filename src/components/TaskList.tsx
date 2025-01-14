@@ -9,6 +9,7 @@ import { SortField, SortOrder } from "./TaskSorting";
 import { useTaskFiltering } from "./task/TaskFilterLogic";
 import { useTaskOperations } from "./task/TaskOperations";
 import { supabase } from "@/integrations/supabase/client";
+import { BatchActions } from "./task/BatchActions";
 
 interface TaskListProps {
   tasks: Task[];
@@ -19,6 +20,7 @@ interface TaskListProps {
 export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps) {
   const { toast } = useToast();
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>("dueDate");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -33,7 +35,74 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
   const priorities = useMemo(() => ["all", ...new Set(tasks.map(task => task.priority))], [tasks]);
 
   const handleDeleteTask = async (task: Task) => {
+    setSelectedTasks(new Set());
     setTaskToDelete(task);
+  };
+
+  const handleBatchDelete = async () => {
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .in('id', Array.from(selectedTasks));
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete tasks",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Tasks deleted successfully",
+      });
+      setSelectedTasks(new Set());
+      onTasksChange?.();
+    }
+  };
+
+  const handleBatchStatusChange = async (newStatus: Task['status']) => {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ status: newStatus })
+      .in('id', Array.from(selectedTasks));
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update task status",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Task status updated successfully",
+      });
+      setSelectedTasks(new Set());
+      onTasksChange?.();
+    }
+  };
+
+  const handleBatchMoveToFolder = async (folderId: string | null) => {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ folder_id: folderId })
+      .in('id', Array.from(selectedTasks));
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to move tasks",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Tasks moved successfully",
+      });
+      setSelectedTasks(new Set());
+      onTasksChange?.();
+    }
   };
 
   const confirmDelete = async () => {
@@ -85,8 +154,25 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
     categoryFilter,
   });
 
+  const handleTaskSelect = (taskId: string, selected: boolean) => {
+    const newSelectedTasks = new Set(selectedTasks);
+    if (selected) {
+      newSelectedTasks.add(taskId);
+    } else {
+      newSelectedTasks.delete(taskId);
+    }
+    setSelectedTasks(newSelectedTasks);
+  };
+
   return (
     <>
+      <BatchActions
+        selectedTasks={tasks.filter(task => selectedTasks.has(task.id))}
+        onStatusChange={handleBatchStatusChange}
+        onDelete={handleBatchDelete}
+        onMoveToFolder={handleBatchMoveToFolder}
+      />
+
       <TaskFilterBar
         sortField={sortField}
         sortOrder={sortOrder}
@@ -108,6 +194,8 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
         onTaskClick={handleTaskClick}
         onTaskDelete={handleDeleteTask}
         onDragEnd={handleDragEndEvent}
+        selectedTasks={selectedTasks}
+        onTaskSelect={handleTaskSelect}
       />
 
       <DeleteTaskDialog

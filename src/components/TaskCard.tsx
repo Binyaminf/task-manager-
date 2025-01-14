@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useState } from "react";
@@ -30,11 +31,15 @@ export interface Task {
 export function TaskCard({ 
   task, 
   onClick, 
-  onDelete 
+  onDelete,
+  isSelected,
+  onSelect,
 }: { 
   task: Task; 
   onClick: () => void; 
-  onDelete: () => void; 
+  onDelete: () => void;
+  isSelected?: boolean;
+  onSelect?: (selected: boolean) => void;
 }) {
   const [folderName, setFolderName] = useState<string>("");
 
@@ -79,10 +84,20 @@ export function TaskCard({
       {...listeners}
       className="cursor-move"
     >
-      <Card className="w-full animate-task-fade-in">
+      <Card className={`w-full animate-task-fade-in ${isSelected ? 'ring-2 ring-primary' : ''}`}>
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
-            <CardTitle className="text-lg font-semibold">{task.summary}</CardTitle>
+            <div className="flex items-center gap-2">
+              {onSelect && (
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={onSelect}
+                  onClick={(e) => e.stopPropagation()}
+                  className="mt-1"
+                />
+              )}
+              <CardTitle className="text-lg font-semibold">{task.summary}</CardTitle>
+            </div>
             <div className="flex gap-2">
               <Button
                 variant="ghost"

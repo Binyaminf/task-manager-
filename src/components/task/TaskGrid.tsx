@@ -9,9 +9,18 @@ interface TaskGridProps {
   onTaskClick: (task: Task) => void;
   onTaskDelete: (task: Task) => void;
   onDragEnd: (event: DragEndEvent) => void;
+  selectedTasks?: Set<string>;
+  onTaskSelect?: (taskId: string, selected: boolean) => void;
 }
 
-export function TaskGrid({ tasks, onTaskClick, onTaskDelete, onDragEnd }: TaskGridProps) {
+export function TaskGrid({ 
+  tasks, 
+  onTaskClick, 
+  onTaskDelete, 
+  onDragEnd,
+  selectedTasks = new Set(),
+  onTaskSelect,
+}: TaskGridProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   
   const sensors = useSensors(
@@ -45,6 +54,8 @@ export function TaskGrid({ tasks, onTaskClick, onTaskDelete, onDragEnd }: TaskGr
               task={task}
               onClick={() => onTaskClick(task)}
               onDelete={() => onTaskDelete(task)}
+              isSelected={selectedTasks.has(task.id)}
+              onSelect={onTaskSelect ? (selected) => onTaskSelect(task.id, selected) : undefined}
             />
           ))}
         </SortableContext>
