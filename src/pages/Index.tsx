@@ -12,7 +12,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderList } from "@/components/FolderList";
 import { PriorityDashboard } from "@/components/priority-dashboard/PriorityDashboard";
 import { AITaskInterface } from "@/components/AITaskInterface";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Calendar as CalendarIcon, List } from "lucide-react";
+import { TaskCalendar } from "@/components/task/TaskCalendar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,7 @@ const Index = () => {
   const [session, setSession] = useState(null);
   const queryClient = useQueryClient();
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
   // Get session on load
   supabase.auth.getSession().then(({ data: { session } }) => {
@@ -37,13 +39,10 @@ const Index = () => {
     setSession(session);
   });
 
-  // Fetch tasks for logged-in user
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks', session?.user?.id, selectedFolder],
     queryFn: async () => {
       if (!session?.user?.id) return [];
-
-      console.log('Fetching tasks with selectedFolder:', selectedFolder);
       
       let query = supabase
         .from('tasks')
@@ -67,16 +66,14 @@ const Index = () => {
         return [];
       }
 
-      console.log('Fetched tasks:', data);
-
       return data.map((task): Task => ({
         id: task.id,
         summary: task.summary,
         description: task.description || undefined,
         dueDate: task.due_date,
         estimatedDuration: task.estimated_duration,
-        priority: task.priority as "High" | "Medium" | "Low",
-        status: task.status as "To Do" | "In Progress" | "Done",
+        priority: task.priority as Task["priority"],
+        status: task.status as Task["status"],
         category: task.category,
         externalLinks: task.external_links || undefined,
         folder_id: task.folder_id
@@ -162,20 +159,40 @@ const Index = () => {
         <div className="container mx-auto py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Task Manager</h1>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="gap-2">
-                  <User className="h-4 w-4" />
-                  <span className="text-sm text-gray-600">{session.user.email}</span>
+            <div className="flex items-center gap-4">
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="h-4 w-4 mr-1" />
+                  List
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleSignOut} className="gap-2">
-                  <LogOut className="h-4 w-4" />
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <Button
+                  variant={viewMode === 'calendar' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('calendar')}
+                >
+                  <CalendarIcon className="h-4 w-4 mr-1" />
+                  Calendar
+                </Button>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="gap-2">
+                    <User className="h-4 w-4" />
+                    <span className="text-sm text-gray-600">{session.user.email}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleSignOut} className="gap-2">
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>
@@ -201,11 +218,15 @@ const Index = () => {
               <FolderList onFolderSelect={setSelectedFolder} />
             </div>
             <div className="mt-6">
-              <TaskList 
-                tasks={tasks} 
-                onTasksChange={handleTasksChange}
-                selectedFolder={selectedFolder}
-              />
+              {viewMode === 'list' ? (
+                <TaskList 
+                  tasks={tasks} 
+                  onTasksChange={handleTasksChange}
+                  selectedFolder={selectedFolder}
+                />
+              ) : (
+                <TaskCalendar tasks={tasks} />
+              )}
             </div>
           </section>
         </div>
