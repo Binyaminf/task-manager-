@@ -82,7 +82,7 @@ const Index = () => {
       }));
     },
     staleTime: 1000 * 60, // Data stays fresh for 1 minute
-    cacheTime: 1000 * 60 * 5, // Cache persists for 5 minutes
+    gcTime: 1000 * 60 * 5, // Cache persists for 5 minutes
     retry: 3,
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });

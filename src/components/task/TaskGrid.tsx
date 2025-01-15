@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { Task } from "../TaskCard";
 import { TaskCard } from "../TaskCard";
 import { DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
@@ -45,7 +46,7 @@ export function TaskGrid({
   const rowVirtualizer = useVirtualizer({
     count: tasks.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 200, // Estimated height of each task card
+    estimateSize: () => 200,
     overscan: 5,
   });
 
