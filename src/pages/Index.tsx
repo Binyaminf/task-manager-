@@ -12,6 +12,8 @@ import { AISection } from "@/components/sections/AISection";
 import { TaskSection } from "@/components/sections/TaskSection";
 import { ErrorBoundary } from "react-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AuthError } from "@supabase/supabase-js";
 
 const LoadingFallback = () => (
   <div className="container py-8">
@@ -30,6 +32,7 @@ const Index = () => {
   const [session, setSession] = useState(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Get session on load
   supabase.auth.getSession().then(({ data: { session } }) => {
@@ -37,9 +40,34 @@ const Index = () => {
   });
 
   // Listen for auth changes
-  supabase.auth.onAuthStateChange((_event, session) => {
-    setSession(session);
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN') {
+      setAuthError(null);
+      setSession(session);
+    } else if (event === 'SIGNED_OUT') {
+      setSession(null);
+    } else if (event === 'USER_UPDATED') {
+      setSession(session);
+    }
   });
+
+  // Handle auth errors
+  const handleAuthError = (error: AuthError) => {
+    let errorMessage = 'An error occurred during authentication.';
+    
+    if (error.message.includes('invalid_credentials')) {
+      errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+    } else if (error.message.includes('Email not confirmed')) {
+      errorMessage = 'Please verify your email address before signing in.';
+    }
+    
+    setAuthError(errorMessage);
+    toast({
+      title: "Authentication Error",
+      description: errorMessage,
+      variant: "destructive",
+    });
+  };
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks', session?.user?.id, selectedFolder],
@@ -137,11 +165,23 @@ const Index = () => {
   if (!session) {
     return (
       <div className="container max-w-md mx-auto py-8">
+        {authError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertDescription>{authError}</AlertDescription>
+          </Alert>
+        )}
         <Auth
           supabaseClient={supabase}
-          appearance={{ theme: ThemeSupa }}
+          appearance={{ 
+            theme: ThemeSupa,
+            style: {
+              button: { background: 'rgb(59 130 246)', color: 'white' },
+              anchor: { color: 'rgb(59 130 246)' },
+            }
+          }}
           providers={["google"]}
           redirectTo={window.location.origin}
+          onError={handleAuthError}
         />
       </div>
     );
