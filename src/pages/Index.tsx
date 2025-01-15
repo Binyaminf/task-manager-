@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Task } from "@/components/TaskCard";
 import { useToast } from "@/hooks/use-toast";
 import { Auth } from "@supabase/auth-ui-react";
@@ -10,6 +10,18 @@ import { Header } from "@/components/layout/Header";
 import { PrioritySection } from "@/components/sections/PrioritySection";
 import { AISection } from "@/components/sections/AISection";
 import { TaskSection } from "@/components/sections/TaskSection";
+import { ErrorBoundary } from "react-error-boundary";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const LoadingFallback = () => (
+  <div className="container py-8">
+    <div className="space-y-8">
+      <Skeleton className="h-[200px] w-full" />
+      <Skeleton className="h-[300px] w-full" />
+      <Skeleton className="h-[500px] w-full" />
+    </div>
+  </div>
+);
 
 const Index = () => {
   const { toast } = useToast();
@@ -69,7 +81,10 @@ const Index = () => {
         folder_id: task.folder_id
       }));
     },
-    enabled: !!session?.user?.id,
+    staleTime: 1000 * 60, // Data stays fresh for 1 minute
+    cacheTime: 1000 * 60 * 5, // Cache persists for 5 minutes
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const handleNewTask = async (taskData: Partial<Task>) => {
@@ -133,38 +148,42 @@ const Index = () => {
   }
 
   if (isLoading) {
-    return (
-      <div className="container py-8">
-        <div className="flex justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        </div>
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header
-        userEmail={session.user.email}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        onSignOut={handleSignOut}
-      />
+      <ErrorBoundary fallback={<div>Something went wrong</div>}>
+        <Header
+          userEmail={session.user.email}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          onSignOut={handleSignOut}
+        />
 
-      <main className="container mx-auto py-8 px-4">
-        <div className="space-y-8">
-          <PrioritySection />
-          <AISection onTaskCreated={handleTasksChange} />
-          <TaskSection
-            tasks={tasks}
-            viewMode={viewMode}
-            selectedFolder={selectedFolder}
-            onNewTask={handleNewTask}
-            onTasksChange={handleTasksChange}
-            onFolderSelect={setSelectedFolder}
-          />
-        </div>
-      </main>
+        <main className="container mx-auto py-8 px-4">
+          <div className="space-y-8">
+            <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
+              <PrioritySection />
+            </Suspense>
+            
+            <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
+              <AISection onTaskCreated={handleTasksChange} />
+            </Suspense>
+            
+            <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>
+              <TaskSection
+                tasks={tasks}
+                viewMode={viewMode}
+                selectedFolder={selectedFolder}
+                onNewTask={handleNewTask}
+                onTasksChange={handleTasksChange}
+                onFolderSelect={setSelectedFolder}
+              />
+            </Suspense>
+          </div>
+        </main>
+      </ErrorBoundary>
     </div>
   );
 };

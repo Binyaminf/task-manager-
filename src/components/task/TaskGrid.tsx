@@ -2,7 +2,8 @@ import { Task } from "../TaskCard";
 import { TaskCard } from "../TaskCard";
 import { DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
-import { useState } from "react";
+import { useState, useMemo, memo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface TaskGridProps {
   tasks: Task[];
@@ -12,6 +13,8 @@ interface TaskGridProps {
   selectedTasks?: Set<string>;
   onTaskSelect?: (taskId: string, selected: boolean) => void;
 }
+
+const MemoizedTaskCard = memo(TaskCard);
 
 export function TaskGrid({ 
   tasks, 
@@ -37,6 +40,17 @@ export function TaskGrid({
     })
   );
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: tasks.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 200, // Estimated height of each task card
+    overscan: 5,
+  });
+
+  const virtualItems = useMemo(() => rowVirtualizer.getVirtualItems(), [rowVirtualizer]);
+
   return (
     <DndContext 
       sensors={sensors} 
@@ -46,19 +60,42 @@ export function TaskGrid({
       }}
       onDragStart={(event) => setActiveId(event.active.id.toString())}
     >
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        <SortableContext items={tasks.map(t => t.id)} strategy={rectSortingStrategy}>
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onClick={() => onTaskClick(task)}
-              onDelete={() => onTaskDelete(task)}
-              isSelected={selectedTasks.has(task.id)}
-              onSelect={onTaskSelect ? (selected) => onTaskSelect(task.id, selected) : undefined}
-            />
-          ))}
-        </SortableContext>
+      <div 
+        ref={parentRef}
+        className="h-[600px] overflow-auto"
+      >
+        <div
+          className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 relative"
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+          }}
+        >
+          <SortableContext items={tasks.map(t => t.id)} strategy={rectSortingStrategy}>
+            {virtualItems.map((virtualRow) => {
+              const task = tasks[virtualRow.index];
+              return (
+                <div
+                  key={task.id}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <MemoizedTaskCard
+                    task={task}
+                    onClick={() => onTaskClick(task)}
+                    onDelete={() => onTaskDelete(task)}
+                    isSelected={selectedTasks.has(task.id)}
+                    onSelect={onTaskSelect ? (selected) => onTaskSelect(task.id, selected) : undefined}
+                  />
+                </div>
+              );
+            })}
+          </SortableContext>
+        </div>
       </div>
 
       <DragOverlay>

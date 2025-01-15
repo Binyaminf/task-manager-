@@ -1,5 +1,5 @@
 import { Task } from "./TaskCard";
-import { useState } from "react";
+import { useState, useMemo, useCallback, Suspense } from "react";
 import { TaskFilterBar } from "./task/TaskFilterBar";
 import { DeleteTaskDialog } from "./task/DeleteTaskDialog";
 import { TaskGrid } from "./task/TaskGrid";
@@ -11,12 +11,22 @@ import { BatchActions } from "./task/BatchActions";
 import { useTaskSelection } from "@/hooks/useTaskSelection";
 import { useTaskDeletion } from "@/hooks/useTaskDeletion";
 import { useBatchOperations } from "@/hooks/useBatchOperations";
+import { ErrorBoundary } from "react-error-boundary";
+import { Skeleton } from "./ui/skeleton";
 
 interface TaskListProps {
   tasks: Task[];
   onTasksChange?: () => void;
   selectedFolder: string | null;
 }
+
+const TaskGridFallback = () => (
+  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+    {Array.from({ length: 6 }).map((_, i) => (
+      <Skeleton key={i} className="h-[200px] w-full" />
+    ))}
+  </div>
+);
 
 export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps) {
   const [sortField, setSortField] = useState<SortField>("dueDate");
@@ -30,12 +40,15 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
   const { taskToDelete, handleDeleteTask, confirmDelete, closeDeleteDialog } = useTaskDeletion(onTasksChange);
   const { handleBatchDelete, handleBatchStatusChange, handleBatchMoveToFolder } = useBatchOperations(onTasksChange);
 
-  // Get unique filter options
-  const categories = ["all", ...new Set(tasks.map(task => task.category))];
-  const statuses = ["all", ...new Set(tasks.map(task => task.status))];
-  const priorities = ["all", ...new Set(tasks.map(task => task.priority))];
+  // Memoize filter options
+  const filterOptions = useMemo(() => {
+    const categories = ["all", ...new Set(tasks.map(task => task.category))];
+    const statuses = ["all", ...new Set(tasks.map(task => task.status))];
+    const priorities = ["all", ...new Set(tasks.map(task => task.priority))];
+    return { categories, statuses, priorities };
+  }, [tasks]);
 
-  const handleDragEndEvent = (event: DragEndEvent) => {
+  const handleDragEndEvent = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     
     if (!over) return;
@@ -47,7 +60,7 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
       const folderId = over.id.toString().replace('folder-', '');
       handleDragEnd(activeTask, folderId === 'none' ? null : folderId);
     }
-  };
+  }, [tasks, handleDragEnd]);
 
   // Filter and sort tasks
   const filteredAndSortedTasks = useTaskFiltering({
@@ -60,10 +73,15 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
     categoryFilter,
   });
 
+  const selectedTasksList = useMemo(() => 
+    tasks.filter(task => selectedTasks.has(task.id)),
+    [tasks, selectedTasks]
+  );
+
   return (
-    <>
+    <ErrorBoundary fallback={<div>Something went wrong</div>}>
       <BatchActions
-        selectedTasks={tasks.filter(task => selectedTasks.has(task.id))}
+        selectedTasks={selectedTasksList}
         onStatusChange={(status) => {
           handleBatchStatusChange(selectedTasks, status);
           clearSelection();
@@ -84,9 +102,9 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
         statusFilter={statusFilter}
         priorityFilter={priorityFilter}
         categoryFilter={categoryFilter}
-        statuses={statuses}
-        priorities={priorities}
-        categories={categories}
+        statuses={filterOptions.statuses}
+        priorities={filterOptions.priorities}
+        categories={filterOptions.categories}
         onSortFieldChange={setSortField}
         onSortOrderChange={setSortOrder}
         onStatusChange={setStatusFilter}
@@ -94,20 +112,22 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
         onCategoryChange={setCategoryFilter}
       />
 
-      <TaskGrid
-        tasks={filteredAndSortedTasks}
-        onTaskClick={handleTaskClick}
-        onTaskDelete={handleDeleteTask}
-        onDragEnd={handleDragEndEvent}
-        selectedTasks={selectedTasks}
-        onTaskSelect={handleTaskSelect}
-      />
+      <Suspense fallback={<TaskGridFallback />}>
+        <TaskGrid
+          tasks={filteredAndSortedTasks}
+          onTaskClick={handleTaskClick}
+          onTaskDelete={handleDeleteTask}
+          onDragEnd={handleDragEndEvent}
+          selectedTasks={selectedTasks}
+          onTaskSelect={handleTaskSelect}
+        />
+      </Suspense>
 
       <DeleteTaskDialog
         taskToDelete={taskToDelete}
         onClose={closeDeleteDialog}
         onConfirm={confirmDelete}
       />
-    </>
+    </ErrorBoundary>
   );
 }
