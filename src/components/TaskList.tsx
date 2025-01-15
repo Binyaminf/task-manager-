@@ -29,6 +29,9 @@ const TaskGridFallback = () => (
 );
 
 export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps) {
+  console.log('TaskList - Received tasks:', tasks);
+  console.log('TaskList - Selected folder:', selectedFolder);
+
   const [sortField, setSortField] = useState<SortField>("dueDate");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -42,9 +45,11 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
 
   // Memoize filter options
   const filterOptions = useMemo(() => {
+    console.log('TaskList - Calculating filter options from tasks:', tasks);
     const categories = ["all", ...new Set(tasks.map(task => task.category))];
     const statuses = ["all", ...new Set(tasks.map(task => task.status))];
     const priorities = ["all", ...new Set(tasks.map(task => task.priority))];
+    console.log('TaskList - Filter options:', { categories, statuses, priorities });
     return { categories, statuses, priorities };
   }, [tasks]);
 
@@ -73,10 +78,20 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
     categoryFilter,
   });
 
+  console.log('TaskList - Filtered and sorted tasks:', filteredAndSortedTasks);
+
   const selectedTasksList = useMemo(() => 
     tasks.filter(task => selectedTasks.has(task.id)),
     [tasks, selectedTasks]
   );
+
+  if (tasks.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No tasks found. Create a new task to get started.
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary fallback={<div>Something went wrong</div>}>
