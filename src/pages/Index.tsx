@@ -13,7 +13,7 @@ import { TaskSection } from "@/components/sections/TaskSection";
 import { ErrorBoundary } from "react-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AuthError } from "@supabase/supabase-js";
+import { AuthError, AuthApiError } from "@supabase/supabase-js";
 
 const LoadingFallback = () => (
   <div className="container py-8">
@@ -39,34 +39,38 @@ const Index = () => {
     setSession(session);
   });
 
-  // Listen for auth changes
+  // Listen for auth changes and handle errors
   supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN') {
       setAuthError(null);
       setSession(session);
     } else if (event === 'SIGNED_OUT') {
       setSession(null);
+      setAuthError(null);
     } else if (event === 'USER_UPDATED') {
       setSession(session);
+    } else if (event === 'PASSWORD_RECOVERY') {
+      setAuthError('Please check your email to reset your password.');
     }
   });
 
-  // Handle auth errors
-  const handleAuthError = (error: AuthError) => {
-    let errorMessage = 'An error occurred during authentication.';
-    
-    if (error.message.includes('invalid_credentials')) {
-      errorMessage = 'Invalid email or password. Please check your credentials and try again.';
-    } else if (error.message.includes('Email not confirmed')) {
-      errorMessage = 'Please verify your email address before signing in.';
+  // Error handling utility
+  const getErrorMessage = (error: AuthError) => {
+    if (error instanceof AuthApiError) {
+      switch (error.code) {
+        case 'invalid_credentials':
+          return 'Invalid email or password. Please check your credentials and try again.';
+        case 'email_not_confirmed':
+          return 'Please verify your email address before signing in.';
+        case 'user_not_found':
+          return 'No user found with these credentials.';
+        case 'invalid_grant':
+          return 'Invalid login credentials.';
+        default:
+          return error.message;
+      }
     }
-    
-    setAuthError(errorMessage);
-    toast({
-      title: "Authentication Error",
-      description: errorMessage,
-      variant: "destructive",
-    });
+    return error.message;
   };
 
   const { data: tasks = [], isLoading } = useQuery({
@@ -181,7 +185,6 @@ const Index = () => {
           }}
           providers={["google"]}
           redirectTo={window.location.origin}
-          onError={handleAuthError}
         />
       </div>
     );
