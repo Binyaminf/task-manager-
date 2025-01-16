@@ -3,7 +3,7 @@ import { Task } from "../TaskCard";
 import { TaskCard } from "../TaskCard";
 import { DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
-import { useState, useMemo, memo } from "react";
+import { useState, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface TaskGridProps {
@@ -14,8 +14,6 @@ interface TaskGridProps {
   selectedTasks?: Set<string>;
   onTaskSelect?: (taskId: string, selected: boolean) => void;
 }
-
-const MemoizedTaskCard = memo(TaskCard);
 
 export function TaskGrid({ 
   tasks, 
@@ -43,14 +41,35 @@ export function TaskGrid({
 
   const parentRef = React.useRef<HTMLDivElement>(null);
 
+  // Calculate the number of columns based on screen width
+  const getColumnCount = () => {
+    if (typeof window === 'undefined') return 1;
+    if (window.innerWidth >= 1024) return 3; // lg
+    if (window.innerWidth >= 768) return 2; // md
+    return 1; // default
+  };
+
+  const columnCount = getColumnCount();
+  const rowCount = Math.ceil(tasks.length / columnCount);
+
   const rowVirtualizer = useVirtualizer({
-    count: tasks.length,
+    count: rowCount,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 200,
     overscan: 5,
   });
 
-  const virtualItems = useMemo(() => rowVirtualizer.getVirtualItems(), [rowVirtualizer]);
+  console.log('TaskGrid - Number of tasks:', tasks.length);
+  console.log('TaskGrid - Column count:', columnCount);
+  console.log('TaskGrid - Row count:', rowCount);
+
+  if (!tasks || tasks.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No tasks available
+      </div>
+    );
+  }
 
   return (
     <DndContext 
@@ -72,27 +91,38 @@ export function TaskGrid({
           }}
         >
           <SortableContext items={tasks.map(t => t.id)} strategy={rectSortingStrategy}>
-            {virtualItems.map((virtualRow) => {
-              const task = tasks[virtualRow.index];
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const startIndex = virtualRow.index * columnCount;
               return (
-                <div
-                  key={task.id}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                >
-                  <MemoizedTaskCard
-                    task={task}
-                    onClick={() => onTaskClick(task)}
-                    onDelete={() => onTaskDelete(task)}
-                    isSelected={selectedTasks.has(task.id)}
-                    onSelect={onTaskSelect ? (selected) => onTaskSelect(task.id, selected) : undefined}
-                  />
-                </div>
+                <React.Fragment key={virtualRow.index}>
+                  {Array.from({ length: columnCount }).map((_, columnIndex) => {
+                    const taskIndex = startIndex + columnIndex;
+                    const task = tasks[taskIndex];
+                    if (!task) return null;
+
+                    return (
+                      <div
+                        key={task.id}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: `${(columnIndex / columnCount) * 100}%`,
+                          width: `${100 / columnCount}%`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                          padding: '0 8px',
+                        }}
+                      >
+                        <TaskCard
+                          task={task}
+                          onClick={() => onTaskClick(task)}
+                          onDelete={() => onTaskDelete(task)}
+                          isSelected={selectedTasks.has(task.id)}
+                          onSelect={onTaskSelect ? (selected) => onTaskSelect(task.id, selected) : undefined}
+                        />
+                      </div>
+                    );
+                  })}
+                </React.Fragment>
               );
             })}
           </SortableContext>
