@@ -4,14 +4,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import { Badge } from "@/components/ui/badge";
 
 interface AITaskInterfaceProps {
   onTaskCreated: () => void;
 }
 
+interface AIAnalysis {
+  confidence: number;
+  relatedKeywords: string[];
+}
+
 export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const { toast } = useToast();
 
   const processAIRequest = async () => {
@@ -74,6 +86,8 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
 
         if (createError) throw createError;
 
+        setAnalysis(data.analysis);
+
         toast({
           title: "Success",
           description: "Task created successfully",
@@ -96,16 +110,47 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
 
   return (
     <div className="space-y-4 mb-8">
-      <Textarea
-        placeholder="Enter your task naturally... Examples:
+      <div className="relative">
+        <Textarea
+          placeholder="Enter your task naturally... Examples:
 • Create a high priority task to review the project proposal by next Friday
-• Schedule a meeting with the team tomorrow that will take 2 hours
-• Research new technologies for the next sprint in 3 days
-• Document the API changes by next week"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        className="min-h-[100px]"
-      />
+• Schedule a 2-hour meeting with the team tomorrow to discuss the new features
+• Research new technologies for the next sprint, should take about 3 days
+• Document the API changes by next week, low priority"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          className="min-h-[100px]"
+        />
+        {analysis && (
+          <div className="absolute right-2 top-2">
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <Badge 
+                  variant="secondary"
+                  className="cursor-help"
+                >
+                  {Math.round(analysis.confidence * 100)}% confidence
+                </Badge>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-80">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold">AI Analysis</h4>
+                  <div className="text-sm">
+                    Related keywords:
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {analysis.relatedKeywords.map((keyword, index) => (
+                        <Badge key={index} variant="outline">
+                          {keyword}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+          </div>
+        )}
+      </div>
       <Button 
         onClick={processAIRequest} 
         disabled={isProcessing}

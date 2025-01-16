@@ -6,6 +6,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface TaskAnalysis {
+  summary: string;
+  description: string;
+  dueDate: string;
+  priority: 'High' | 'Medium' | 'Low';
+  category: string;
+  estimatedDuration: string;
+  relatedKeywords: string[];
+  confidence: number;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -16,7 +27,7 @@ serve(async (req) => {
     console.log('Processing text:', text);
     console.log('Current time reference:', currentTime);
 
-    // Initialize Hugging Face API
+    // Initialize Hugging Face API for task classification
     const HUGGING_FACE_API = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
     const response = await fetch(HUGGING_FACE_API, {
       method: "POST",
@@ -27,7 +38,12 @@ serve(async (req) => {
       body: JSON.stringify({
         inputs: text,
         parameters: {
-          candidate_labels: ["search query", "task creation"]
+          candidate_labels: [
+            "task creation",
+            "search query",
+            "task update",
+            "task deletion"
+          ]
         }
       })
     });
@@ -59,103 +75,140 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    } else {
-      // Extract priority keywords
-      const priorityKeywords = {
-        high: ['urgent', 'asap', 'important', 'critical', 'high priority'],
-        low: ['low priority', 'whenever possible', 'not urgent', 'can wait']
-      };
-
-      // Extract category keywords
-      const categoryKeywords = {
-        'Meeting': ['meet', 'meeting', 'conference', 'call'],
-        'Development': ['code', 'develop', 'programming', 'debug', 'feature'],
-        'Planning': ['plan', 'strategy', 'roadmap', 'outline'],
-        'Research': ['research', 'investigate', 'study', 'analyze'],
-        'Documentation': ['document', 'write', 'draft', 'report']
-      };
-
-      // Determine priority
-      const textLower = text.toLowerCase();
-      let priority = 'Medium';
-      
-      if (priorityKeywords.high.some(keyword => textLower.includes(keyword))) {
-        priority = 'High';
-      } else if (priorityKeywords.low.some(keyword => textLower.includes(keyword))) {
-        priority = 'Low';
-      }
-
-      // Determine category
-      let category = 'General';
-      for (const [cat, keywords] of Object.entries(categoryKeywords)) {
-        if (keywords.some(keyword => textLower.includes(keyword))) {
-          category = cat;
-          break;
-        }
-      }
-
-      // Parse the current time
-      const now = new Date(currentTime);
-
-      // Extract date using regex patterns
-      const datePatterns = {
-        tomorrow: /\btomorrow\b/i,
-        nextWeek: /\bnext week\b/i,
-        specificDate: /\bon ([A-Za-z]+ \d{1,2}(?:st|nd|rd|th)?)\b/i,
-        daysFromNow: /\bin (\d+) days?\b/i
-      };
-
-      let dueDate = new Date(now);
-      dueDate.setDate(dueDate.getDate() + 7); // Default to one week
-
-      if (datePatterns.tomorrow.test(text)) {
-        dueDate = new Date(now);
-        dueDate.setDate(dueDate.getDate() + 1);
-      } else if (datePatterns.nextWeek.test(text)) {
-        dueDate = new Date(now);
-        dueDate.setDate(dueDate.getDate() + 7);
-      } else if (datePatterns.daysFromNow.test(text)) {
-        const matches = text.match(datePatterns.daysFromNow);
-        if (matches && matches[1]) {
-          const days = parseInt(matches[1]);
-          dueDate = new Date(now);
-          dueDate.setDate(dueDate.getDate() + days);
-        }
-      }
-
-      // Extract duration using regex
-      const durationPattern = /(\d+)\s*(h|hour|hours|d|day|days)/i;
-      let estimatedDuration = '1h';
-      const durationMatch = text.match(durationPattern);
-      if (durationMatch) {
-        const amount = durationMatch[1];
-        const unit = durationMatch[2].toLowerCase();
-        if (unit.startsWith('h')) {
-          estimatedDuration = `${amount}h`;
-        } else if (unit.startsWith('d')) {
-          estimatedDuration = `${amount}d`;
-        }
-      }
-
-      const task = {
-        summary: text.split('.')[0], // Use first sentence as summary
-        description: text,
-        dueDate: dueDate.toISOString(),
-        priority,
-        category,
-        estimatedDuration
-      };
-
-      console.log('Created task:', task);
-
-      return new Response(
-        JSON.stringify({
-          type: 'create',
-          task
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
+
+    // Enhanced context analysis
+    const contextPatterns = {
+      priority: {
+        high: /\b(urgent|asap|important|critical|high priority|crucial|emergency|immediate|vital)\b/i,
+        low: /\b(low priority|whenever possible|not urgent|can wait|optional|flexible|minor)\b/i,
+        dependencies: /\b(after|before|depends on|following|prerequisite)\b/i
+      },
+      category: {
+        'Meeting': /\b(meet|meeting|conference|call|sync|discussion|presentation)\b/i,
+        'Development': /\b(code|develop|programming|debug|feature|implement|build|test)\b/i,
+        'Planning': /\b(plan|strategy|roadmap|outline|organize|coordinate|schedule)\b/i,
+        'Research': /\b(research|investigate|study|analyze|explore|review|evaluate)\b/i,
+        'Documentation': /\b(document|write|draft|report|update docs|create guide)\b/i,
+        'Design': /\b(design|mockup|prototype|wireframe|ui|ux|layout)\b/i,
+        'Bug Fix': /\b(bug|fix|issue|problem|error|defect|patch)\b/i
+      },
+      timeframe: {
+        immediate: /\b(today|now|asap|immediately|urgent)\b/i,
+        shortTerm: /\b(tomorrow|next day|this week)\b/i,
+        mediumTerm: /\b(next week|coming weeks|this month)\b/i,
+        longTerm: /\b(next month|coming months|long term)\b/i
+      },
+      duration: {
+        quick: /\b(\d+)\s*(min|minute|minutes)\b/i,
+        hours: /\b(\d+)\s*(h|hour|hours)\b/i,
+        days: /\b(\d+)\s*(d|day|days)\b/i,
+        weeks: /\b(\d+)\s*(w|week|weeks)\b/i
+      }
+    };
+
+    // Determine priority with confidence scoring
+    let priority = 'Medium';
+    let priorityConfidence = 0.5;
+    
+    if (contextPatterns.priority.high.test(text)) {
+      priority = 'High';
+      priorityConfidence = 0.8;
+    } else if (contextPatterns.priority.low.test(text)) {
+      priority = 'Low';
+      priorityConfidence = 0.8;
+    }
+
+    // Smart category detection
+    let category = 'General';
+    let categoryConfidence = 0.3;
+    
+    for (const [cat, pattern] of Object.entries(contextPatterns.category)) {
+      if (pattern.test(text)) {
+        category = cat;
+        categoryConfidence = 0.7;
+        break;
+      }
+    }
+
+    // Parse the current time
+    const now = new Date(currentTime);
+
+    // Intelligent due date determination
+    let dueDate = new Date(now);
+    let dateConfidence = 0.5;
+
+    if (contextPatterns.timeframe.immediate.test(text)) {
+      dueDate = new Date(now);
+      dateConfidence = 0.9;
+    } else if (contextPatterns.timeframe.shortTerm.test(text)) {
+      dueDate.setDate(dueDate.getDate() + 2);
+      dateConfidence = 0.8;
+    } else if (contextPatterns.timeframe.mediumTerm.test(text)) {
+      dueDate.setDate(dueDate.getDate() + 7);
+      dateConfidence = 0.7;
+    } else if (contextPatterns.timeframe.longTerm.test(text)) {
+      dueDate.setDate(dueDate.getDate() + 30);
+      dateConfidence = 0.6;
+    }
+
+    // Smart duration estimation
+    let estimatedDuration = '1h';
+    let durationConfidence = 0.4;
+
+    for (const [type, pattern] of Object.entries(contextPatterns.duration)) {
+      const match = text.match(pattern);
+      if (match) {
+        const amount = parseInt(match[1]);
+        switch (type) {
+          case 'quick':
+            estimatedDuration = `${Math.ceil(amount/60)}h`;
+            break;
+          case 'hours':
+            estimatedDuration = `${amount}h`;
+            break;
+          case 'days':
+            estimatedDuration = `${amount}d`;
+            break;
+          case 'weeks':
+            estimatedDuration = `${amount * 5}d`; // Converting to working days
+            break;
+        }
+        durationConfidence = 0.8;
+        break;
+      }
+    }
+
+    // Extract key phrases for context
+    const keyPhrases = text.match(/\b[A-Za-z]+(?:\s+[A-Za-z]+)*\b/g) || [];
+    const relatedKeywords = [...new Set(keyPhrases)]
+      .filter(phrase => phrase.length > 3)
+      .slice(0, 5);
+
+    const task: TaskAnalysis = {
+      summary: text.split('.')[0], // First sentence as summary
+      description: text,
+      dueDate: dueDate.toISOString(),
+      priority,
+      category,
+      estimatedDuration,
+      relatedKeywords,
+      confidence: (priorityConfidence + categoryConfidence + dateConfidence + durationConfidence) / 4
+    };
+
+    console.log('Created task with analysis:', task);
+
+    return new Response(
+      JSON.stringify({
+        type: 'create',
+        task,
+        analysis: {
+          confidence: task.confidence,
+          relatedKeywords: task.relatedKeywords,
+        }
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (error) {
     console.error('Error processing request:', error);
     return new Response(
