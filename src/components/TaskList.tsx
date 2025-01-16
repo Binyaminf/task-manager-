@@ -99,9 +99,9 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
         onStatusChange={setStatusFilter}
         onPriorityChange={setPriorityFilter}
         onCategoryChange={setCategoryFilter}
-        onBatchStatusChange={handleBatchStatusChange}
-        onBatchDelete={handleBatchDelete}
-        onBatchMoveToFolder={handleBatchMoveToFolder}
+        onBatchStatusChange={(status) => handleBatchStatusChange(selectedTasks, status)}
+        onBatchDelete={() => handleBatchDelete(selectedTasks)}
+        onBatchMoveToFolder={(folderId) => handleBatchMoveToFolder(selectedTasks, folderId)}
         clearSelection={clearSelection}
       />
 

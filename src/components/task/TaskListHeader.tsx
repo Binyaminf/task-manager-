@@ -1,11 +1,12 @@
 import { TaskFilterBar } from "./TaskFilterBar";
 import { BatchActions } from "./BatchActions";
 import { Task } from "../TaskCard";
+import { SortField, SortOrder } from "../TaskSorting";
 
 interface TaskListHeaderProps {
   selectedTasks: Task[];
-  sortField: string;
-  sortOrder: string;
+  sortField: SortField;
+  sortOrder: SortOrder;
   statusFilter: string;
   priorityFilter: string;
   categoryFilter: string;
@@ -14,14 +15,14 @@ interface TaskListHeaderProps {
     priorities: string[];
     categories: string[];
   };
-  onSortFieldChange: (field: any) => void;
-  onSortOrderChange: (order: any) => void;
+  onSortFieldChange: (field: SortField) => void;
+  onSortOrderChange: (order: SortOrder) => void;
   onStatusChange: (status: string) => void;
   onPriorityChange: (priority: string) => void;
   onCategoryChange: (category: string) => void;
-  onBatchStatusChange: (status: string) => void;
+  onBatchStatusChange: (status: Task['status']) => void;
   onBatchDelete: () => void;
-  onBatchMoveToFolder: (folderId: string) => void;
+  onBatchMoveToFolder: (folderId: string | null) => void;
   clearSelection: () => void;
 }
 
