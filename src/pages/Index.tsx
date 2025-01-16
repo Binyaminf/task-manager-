@@ -1,29 +1,12 @@
-import { useState, Suspense } from "react";
+import { useState } from "react";
 import { Task } from "@/components/TaskCard";
 import { useToast } from "@/hooks/use-toast";
-import { Auth } from "@supabase/auth-ui-react";
-import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Header } from "@/components/layout/Header";
-import { PrioritySection } from "@/components/sections/PrioritySection";
-import { AISection } from "@/components/sections/AISection";
-import { TaskSection } from "@/components/sections/TaskSection";
-import { ErrorBoundary } from "react-error-boundary";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AuthError, AuthApiError } from "@supabase/supabase-js";
-
-const LoadingFallback = () => (
-  <div className="container py-8">
-    <div className="space-y-8">
-      <Skeleton className="h-[200px] w-full" />
-      <Skeleton className="h-[300px] w-full" />
-      <Skeleton className="h-[500px] w-full" />
-    </div>
-  </div>
-);
+import { AuthWrapper } from "@/components/auth/AuthWrapper";
+import { LoadingFallback } from "@/components/common/LoadingFallback";
+import { MainContent } from "@/components/layout/MainContent";
 
 const Index = () => {
   const { toast } = useToast();
@@ -53,25 +36,6 @@ const Index = () => {
       setAuthError('Please check your email to reset your password.');
     }
   });
-
-  // Error handling utility
-  const getErrorMessage = (error: AuthError) => {
-    if (error instanceof AuthApiError) {
-      switch (error.code) {
-        case 'invalid_credentials':
-          return 'Invalid email or password. Please check your credentials and try again.';
-        case 'email_not_confirmed':
-          return 'Please verify your email address before signing in.';
-        case 'user_not_found':
-          return 'No user found with these credentials.';
-        case 'invalid_grant':
-          return 'Invalid login credentials.';
-        default:
-          return error.message;
-      }
-    }
-    return error.message;
-  };
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks', session?.user?.id, selectedFolder],
@@ -113,10 +77,6 @@ const Index = () => {
         folder_id: task.folder_id
       }));
     },
-    staleTime: 1000 * 60, // Data stays fresh for 1 minute
-    gcTime: 1000 * 60 * 5, // Cache persists for 5 minutes
-    retry: 3,
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const handleNewTask = async (taskData: Partial<Task>) => {
@@ -167,27 +127,7 @@ const Index = () => {
   };
 
   if (!session) {
-    return (
-      <div className="container max-w-md mx-auto py-8">
-        {authError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{authError}</AlertDescription>
-          </Alert>
-        )}
-        <Auth
-          supabaseClient={supabase}
-          appearance={{ 
-            theme: ThemeSupa,
-            style: {
-              button: { background: 'rgb(59 130 246)', color: 'white' },
-              anchor: { color: 'rgb(59 130 246)' },
-            }
-          }}
-          providers={["google"]}
-          redirectTo={window.location.origin}
-        />
-      </div>
-    );
+    return <AuthWrapper authError={authError} />;
   }
 
   if (isLoading) {
@@ -195,39 +135,17 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <ErrorBoundary fallback={<div>Something went wrong</div>}>
-        <Header
-          userEmail={session.user.email}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          onSignOut={handleSignOut}
-        />
-
-        <main className="container mx-auto py-8 px-4">
-          <div className="space-y-8">
-            <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
-              <PrioritySection />
-            </Suspense>
-            
-            <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
-              <AISection onTaskCreated={handleTasksChange} />
-            </Suspense>
-            
-            <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>
-              <TaskSection
-                tasks={tasks}
-                viewMode={viewMode}
-                selectedFolder={selectedFolder}
-                onNewTask={handleNewTask}
-                onTasksChange={handleTasksChange}
-                onFolderSelect={setSelectedFolder}
-              />
-            </Suspense>
-          </div>
-        </main>
-      </ErrorBoundary>
-    </div>
+    <MainContent
+      session={session}
+      tasks={tasks}
+      viewMode={viewMode}
+      selectedFolder={selectedFolder}
+      onSignOut={handleSignOut}
+      onNewTask={handleNewTask}
+      onTasksChange={handleTasksChange}
+      onViewModeChange={setViewMode}
+      onFolderSelect={setSelectedFolder}
+    />
   );
 };
 
