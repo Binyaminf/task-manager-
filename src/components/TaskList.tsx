@@ -29,7 +29,8 @@ const TaskGridFallback = () => (
 );
 
 export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps) {
-  console.log('TaskList - Received tasks:', tasks);
+  console.log('TaskList - Component rendered');
+  console.log('TaskList - Initial tasks:', tasks);
   console.log('TaskList - Selected folder:', selectedFolder);
 
   const [sortField, setSortField] = useState<SortField>("dueDate");
@@ -45,7 +46,7 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
 
   // Memoize filter options
   const filterOptions = useMemo(() => {
-    console.log('TaskList - Calculating filter options from tasks:', tasks);
+    console.log('TaskList - Calculating filter options');
     const categories = ["all", ...new Set(tasks.map(task => task.category))];
     const statuses = ["all", ...new Set(tasks.map(task => task.status))];
     const priorities = ["all", ...new Set(tasks.map(task => task.priority))];
@@ -85,13 +86,16 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
     [tasks, selectedTasks]
   );
 
-  if (tasks.length === 0) {
+  if (!tasks || tasks.length === 0) {
+    console.log('TaskList - No tasks available');
     return (
       <div className="text-center py-8 text-muted-foreground">
         No tasks found. Create a new task to get started.
       </div>
     );
   }
+
+  console.log('TaskList - Rendering with tasks:', filteredAndSortedTasks.length);
 
   return (
     <ErrorBoundary fallback={<div>Something went wrong</div>}>
