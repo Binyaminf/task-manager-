@@ -1,32 +1,35 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json'
 };
 
-interface TaskAnalysis {
-  summary: string;
-  description: string;
-  dueDate: string;
-  priority: 'High' | 'Medium' | 'Low';
-  category: string;
-  estimatedDuration: string;
-  relatedKeywords: string[];
-  confidence: number;
-}
-
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    });
   }
 
   try {
+    // Ensure request is POST
+    if (req.method !== 'POST') {
+      throw new Error('Method not allowed');
+    }
+
     const { text, currentTime } = await req.json();
     console.log('Processing text:', text);
     console.log('Current time reference:', currentTime);
+
+    if (!text) {
+      throw new Error('No text provided');
+    }
 
     // Initialize Hugging Face API for task classification
     const HUGGING_FACE_API = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
@@ -79,7 +82,7 @@ serve(async (req) => {
           type: 'search',
           results: searchResults
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: corsHeaders }
       );
     }
 
@@ -191,8 +194,8 @@ serve(async (req) => {
       .filter(phrase => phrase.length > 3)
       .slice(0, 5);
 
-    const task: TaskAnalysis = {
-      summary: text.split('.')[0], // First sentence as summary
+    const task = {
+      summary: text.split('.')[0],
       description: text,
       dueDate: dueDate.toISOString(),
       priority,
@@ -213,15 +216,18 @@ serve(async (req) => {
           relatedKeywords: task.relatedKeywords,
         }
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: corsHeaders }
     );
   } catch (error) {
     console.error('Error processing request:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack
+      }),
       { 
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: corsHeaders
       }
     );
   }
