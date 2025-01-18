@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Calendar as CalendarIcon, List } from "lucide-react";
+import { LogOut, User, Calendar as CalendarIcon, List, Menu } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 
 interface HeaderProps {
   userEmail?: string;
@@ -16,38 +17,58 @@ interface HeaderProps {
 
 export function Header({ userEmail, viewMode, onViewModeChange, onSignOut }: HeaderProps) {
   return (
-    <header className="bg-white border-b">
-      <div className="container mx-auto py-4">
+    <header className="bg-white border-b shadow-sm sticky top-0 z-50">
+      <div className="container mx-auto py-3">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Task Manager</h1>
-          <div className="flex items-center gap-4">
-            <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="lg:hidden">
+              <Menu className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              Task Manager
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="hidden md:flex items-center gap-2 bg-gray-50 p-1 rounded-lg">
               <Button
-                variant={viewMode === 'list' ? 'default' : 'outline'}
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => onViewModeChange('list')}
+                className="relative"
               >
                 <List className="h-4 w-4 mr-1" />
                 List
               </Button>
               <Button
-                variant={viewMode === 'calendar' ? 'default' : 'outline'}
+                variant={viewMode === 'calendar' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => onViewModeChange('calendar')}
+                className="relative"
               >
                 <CalendarIcon className="h-4 w-4 mr-1" />
                 Calendar
               </Button>
             </div>
+
+            <Separator orientation="vertical" className="h-6 hidden md:block" />
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="gap-2">
-                  <User className="h-4 w-4" />
-                  <span className="text-sm text-gray-600">{userEmail}</span>
+                <Button 
+                  variant="ghost" 
+                  className="gap-2 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <span className="text-sm text-gray-600 hidden md:inline-block">
+                    {userEmail}
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onSignOut} className="gap-2">
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={onSignOut} className="gap-2 text-red-600">
                   <LogOut className="h-4 w-4" />
                   Sign Out
                 </DropdownMenuItem>
