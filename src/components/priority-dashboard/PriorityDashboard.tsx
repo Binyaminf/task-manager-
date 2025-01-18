@@ -54,18 +54,15 @@ export function PriorityDashboard() {
   const priorityTasks = tasks
     .filter(task => {
       if (task.status === "Done") return false;
-
       const dueDate = parseISO(task.dueDate);
       const isWithin72Hours = dueDate <= addDays(new Date(), 3);
       const isOverdue = isPast(dueDate);
-
       return isOverdue || isWithin72Hours;
     })
     .sort((a, b) => {
       const priorityOrder = { High: 3, Medium: 2, Low: 1 };
       const priorityDiff = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
       if (priorityDiff !== 0) return priorityDiff;
-
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     })
     .slice(0, 5);
@@ -101,29 +98,29 @@ export function PriorityDashboard() {
   }
 
   return (
-    <Card className="mb-8 border-2 border-primary">
-      <CardHeader className="pb-3">
+    <Card className="border-l-4 border-l-primary">
+      <CardHeader className="py-3 px-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary animate-pulse" />
-            <CardTitle className="text-xl">Priority Dashboard</CardTitle>
+            <Bell className="h-4 w-4 text-primary animate-pulse" />
+            <CardTitle className="text-base">Priority Tasks</CardTitle>
           </div>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={generateAISummary}
             disabled={isLoadingSummary}
-            className="flex items-center gap-2"
+            className="h-8 px-2 text-sm"
           >
-            <Sparkles className="h-4 w-4" />
-            {isLoadingSummary ? "Generating..." : "AI Summary"}
+            <Sparkles className="h-3 w-3 mr-1" />
+            {isLoadingSummary ? "..." : "AI Summary"}
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-4">
+      <CardContent className="px-4 py-2 space-y-2">
         {aiSummary && (
-          <div className="bg-muted p-4 rounded-lg text-sm">
-            <p className="whitespace-pre-line">{aiSummary}</p>
+          <div className="bg-muted/50 p-3 rounded-md text-sm mb-3">
+            <p className="whitespace-pre-line text-xs">{aiSummary}</p>
           </div>
         )}
         {priorityTasks.map((task) => (

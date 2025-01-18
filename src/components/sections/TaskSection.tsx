@@ -6,7 +6,8 @@ import { TaskCalendar } from "@/components/task/TaskCalendar";
 import { Task } from "@/components/TaskCard";
 import { CollapsibleFilters } from "../task/CollapsibleFilters";
 import { Button } from "../ui/button";
-import { LayoutGrid, List } from "lucide-react";
+import { ChevronDown, ChevronUp, LayoutGrid, List } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 
 interface TaskSectionProps {
   tasks: Task[];
@@ -26,6 +27,7 @@ export function TaskSection({
   onFolderSelect,
 }: TaskSectionProps) {
   const [taskViewMode, setTaskViewMode] = useState<'grid' | 'list'>('grid');
+  const [isFoldersExpanded, setIsFoldersExpanded] = useState(true);
 
   return (
     <section className="bg-white rounded-lg shadow-sm p-6">
@@ -49,9 +51,27 @@ export function TaskSection({
         </div>
       </div>
       
-      <div className="mt-6">
-        <FolderList onFolderSelect={onFolderSelect} />
-      </div>
+      <Collapsible
+        open={isFoldersExpanded}
+        onOpenChange={setIsFoldersExpanded}
+        className="mb-6"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-medium text-gray-500">Folders</h3>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              {isFoldersExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+        <CollapsibleContent className="space-y-2">
+          <FolderList onFolderSelect={onFolderSelect} />
+        </CollapsibleContent>
+      </Collapsible>
       
       <div className="mt-6">
         {viewMode === 'list' ? (
