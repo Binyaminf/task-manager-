@@ -12,11 +12,14 @@ import { useBatchOperations } from "@/hooks/useBatchOperations";
 import { ErrorBoundary } from "react-error-boundary";
 import { TaskListHeader } from "./task/TaskListHeader";
 import { Skeleton } from "./ui/skeleton";
+import { CollapsibleFilters } from "./task/CollapsibleFilters";
+import { TaskListView } from "./task/TaskListView";
 
 interface TaskListProps {
   tasks: Task[];
   onTasksChange?: () => void;
   selectedFolder: string | null;
+  viewMode?: 'grid' | 'list';
 }
 
 const TaskGridFallback = () => (
@@ -27,7 +30,12 @@ const TaskGridFallback = () => (
   </div>
 );
 
-export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps) {
+export function TaskList({ 
+  tasks, 
+  onTasksChange, 
+  selectedFolder,
+  viewMode = 'grid'
+}: TaskListProps) {
   const [sortField, setSortField] = useState<SortField>("dueDate");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -105,15 +113,41 @@ export function TaskList({ tasks, onTasksChange, selectedFolder }: TaskListProps
         clearSelection={clearSelection}
       />
 
+      <CollapsibleFilters
+        sortField={sortField}
+        sortOrder={sortOrder}
+        statusFilter={statusFilter}
+        priorityFilter={priorityFilter}
+        categoryFilter={categoryFilter}
+        statuses={filterOptions.statuses}
+        priorities={filterOptions.priorities}
+        categories={filterOptions.categories}
+        onSortFieldChange={setSortField}
+        onSortOrderChange={setSortOrder}
+        onStatusChange={setStatusFilter}
+        onPriorityChange={setPriorityFilter}
+        onCategoryChange={setCategoryFilter}
+      />
+
       <Suspense fallback={<TaskGridFallback />}>
-        <TaskGrid
-          tasks={filteredAndSortedTasks}
-          onTaskClick={handleTaskClick}
-          onTaskDelete={handleDeleteTask}
-          onDragEnd={handleDragEndEvent}
-          selectedTasks={selectedTasks}
-          onTaskSelect={handleTaskSelect}
-        />
+        {viewMode === 'grid' ? (
+          <TaskGrid
+            tasks={filteredAndSortedTasks}
+            onTaskClick={handleTaskClick}
+            onTaskDelete={handleDeleteTask}
+            onDragEnd={handleDragEndEvent}
+            selectedTasks={selectedTasks}
+            onTaskSelect={handleTaskSelect}
+          />
+        ) : (
+          <TaskListView
+            tasks={filteredAndSortedTasks}
+            onTaskClick={handleTaskClick}
+            onTaskDelete={handleDeleteTask}
+            selectedTasks={selectedTasks}
+            onTaskSelect={handleTaskSelect}
+          />
+        )}
       </Suspense>
 
       <DeleteTaskDialog
