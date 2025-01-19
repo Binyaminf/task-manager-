@@ -129,7 +129,7 @@ const TaskList = memo(({
         onSortFieldChange={setSortField}
         onSortOrderChange={setSortOrder}
         onStatusChange={setStatusFilter}
-        onPriorityChange={setPriorityChange}
+        onPriorityChange={setPriorityFilter}
         onCategoryChange={setCategoryFilter}
         onSearchChange={setSearchQuery}
       />
