@@ -1,5 +1,5 @@
 import { Task } from "./TaskCard";
-import { useState, useMemo, useCallback, Suspense } from "react";
+import { useState, useMemo, useCallback, Suspense, memo } from "react";
 import { DeleteTaskDialog } from "./task/DeleteTaskDialog";
 import { TaskGrid } from "./task/TaskGrid";
 import { DragEndEvent } from "@dnd-kit/core";
@@ -11,7 +11,7 @@ import { useTaskDeletion } from "@/hooks/useTaskDeletion";
 import { useBatchOperations } from "@/hooks/useBatchOperations";
 import { ErrorBoundary } from "react-error-boundary";
 import { TaskListHeader } from "./task/TaskListHeader";
-import { Skeleton } from "./ui/skeleton";
+import { TaskSkeleton, TaskSkeletonGrid } from "./common/TaskSkeleton";
 import { CollapsibleFilters } from "./task/CollapsibleFilters";
 import { TaskListView } from "./task/TaskListView";
 
@@ -20,22 +20,17 @@ interface TaskListProps {
   onTasksChange?: () => void;
   selectedFolder: string | null;
   viewMode?: 'grid' | 'list';
+  isLoading?: boolean;
 }
 
-const TaskGridFallback = () => (
-  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-    {Array.from({ length: 6 }).map((_, i) => (
-      <Skeleton key={i} className="h-[200px] w-full" />
-    ))}
-  </div>
-);
-
-export function TaskList({ 
+// Memoize the TaskList component to prevent unnecessary re-renders
+const TaskList = memo(({ 
   tasks, 
   onTasksChange, 
   selectedFolder,
-  viewMode = 'grid'
-}: TaskListProps) {
+  viewMode = 'grid',
+  isLoading
+}: TaskListProps) => {
   const [sortField, setSortField] = useState<SortField>("dueDate");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -84,6 +79,10 @@ export function TaskList({
     [tasks, selectedTasks]
   );
 
+  if (isLoading) {
+    return viewMode === 'grid' ? <TaskSkeletonGrid /> : <TaskSkeleton />;
+  }
+
   if (!tasks || tasks.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -129,7 +128,7 @@ export function TaskList({
         onCategoryChange={setCategoryFilter}
       />
 
-      <Suspense fallback={<TaskGridFallback />}>
+      <Suspense fallback={viewMode === 'grid' ? <TaskSkeletonGrid /> : <TaskSkeleton />}>
         {viewMode === 'grid' ? (
           <TaskGrid
             tasks={filteredAndSortedTasks}
@@ -157,4 +156,8 @@ export function TaskList({
       />
     </ErrorBoundary>
   );
-}
+});
+
+TaskList.displayName = 'TaskList';
+
+export { TaskList };

@@ -37,7 +37,7 @@ const Index = () => {
     }
   });
 
-  const { data: tasks = [], isLoading } = useQuery({
+  const { data: tasks = [], isLoading, error } = useQuery({
     queryKey: ['tasks', session?.user?.id, selectedFolder],
     queryFn: async () => {
       if (!session?.user?.id) return [];
@@ -130,8 +130,12 @@ const Index = () => {
     return <AuthWrapper authError={authError} />;
   }
 
-  if (isLoading) {
-    return <LoadingFallback />;
+  if (error) {
+    toast({
+      title: "Error",
+      description: "Failed to load tasks. Please try again.",
+      variant: "destructive",
+    });
   }
 
   return (
@@ -145,6 +149,7 @@ const Index = () => {
       onTasksChange={handleTasksChange}
       onViewModeChange={setViewMode}
       onFolderSelect={setSelectedFolder}
+      isLoading={isLoading}
     />
   );
 };
