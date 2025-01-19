@@ -29,7 +29,7 @@ const TaskList = memo(({
   onTasksChange, 
   selectedFolder,
   viewMode = 'grid',
-  isLoading
+  isLoading = false
 }: TaskListProps) => {
   const [sortField, setSortField] = useState<SortField>("dueDate");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
@@ -44,6 +44,7 @@ const TaskList = memo(({
 
   // Memoize filter options
   const filterOptions = useMemo(() => {
+    console.log('Recalculating filter options');
     const categories = ["all", ...new Set(tasks.map(task => task.category))];
     const statuses = ["all", ...new Set(tasks.map(task => task.status))];
     const priorities = ["all", ...new Set(tasks.map(task => task.priority))];

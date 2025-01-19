@@ -9,7 +9,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskBadges } from "./task/TaskBadges";
 import { TaskMetadata } from "./task/TaskMetadata";
@@ -28,19 +28,21 @@ export interface Task {
   folder_id: string | null;
 }
 
-export function TaskCard({ 
+interface TaskCardProps {
+  task: Task;
+  onClick: () => void;
+  onDelete: () => void;
+  isSelected?: boolean;
+  onSelect?: (selected: boolean) => void;
+}
+
+export const TaskCard = memo(({ 
   task, 
   onClick, 
   onDelete,
   isSelected,
   onSelect,
-}: { 
-  task: Task; 
-  onClick: () => void; 
-  onDelete: () => void;
-  isSelected?: boolean;
-  onSelect?: (selected: boolean) => void;
-}) {
+}: TaskCardProps) => {
   const [folderName, setFolderName] = useState<string>("");
 
   useEffect(() => {
@@ -141,4 +143,6 @@ export function TaskCard({
       </Card>
     </div>
   );
-}
+});
+
+TaskCard.displayName = 'TaskCard';

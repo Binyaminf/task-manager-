@@ -10,7 +10,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { Task } from "./components/TaskCard";
 import { useToast } from "@/hooks/use-toast";
 
-const queryClient = new QueryClient();
+// Configure the query client with optimal settings
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // Data stays fresh for 5 minutes
+      cacheTime: 1000 * 60 * 30, // Cache persists for 30 minutes
+      retry: 2, // Retry failed requests twice
+      refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    },
+  },
+});
 
 const TaskEditWrapper = () => {
   const { toast } = useToast();
