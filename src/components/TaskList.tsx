@@ -1,4 +1,3 @@
-import { Task } from "./TaskCard";
 import { useState, useMemo, useCallback, Suspense, memo } from "react";
 import { DeleteTaskDialog } from "./task/DeleteTaskDialog";
 import { TaskGrid } from "./task/TaskGrid";
@@ -16,6 +15,8 @@ import { CollapsibleFilters } from "./task/CollapsibleFilters";
 import { TaskListView } from "./task/TaskListView";
 import { supabase } from "@/integrations/supabase/client";
 import { arrayMove } from "@dnd-kit/sortable";
+import { Task } from "./TaskCard";
+import { useToast } from "@/hooks/use-toast";
 
 interface TaskListProps {
   tasks: Task[];
@@ -38,6 +39,7 @@ const TaskList = memo(({
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const { toast } = useToast();
 
   const { handleTaskClick, handleDragEnd } = useTaskOperations(onTasksChange);
   const { selectedTasks, handleTaskSelect, clearSelection } = useTaskSelection();
@@ -70,22 +72,27 @@ const TaskList = memo(({
       if (oldIndex !== -1 && newIndex !== -1) {
         const reorderedTasks = arrayMove(tasks, oldIndex, newIndex);
         
-        // Update the order in the database
-        const updates = reorderedTasks.map((task, index) => ({
-          id: task.id,
-          order: index
-        }));
+        // Update each task's order one by one to maintain RLS
+        for (let i = 0; i < reorderedTasks.length; i++) {
+          const { error } = await supabase
+            .from('tasks')
+            .update({ order: i })
+            .eq('id', reorderedTasks[i].id);
 
-        const { error } = await supabase
-          .from('tasks')
-          .upsert(updates, { onConflict: 'id' });
-
-        if (!error) {
-          onTasksChange?.();
+          if (error) {
+            toast({
+              title: "Error",
+              description: "Failed to update task order",
+              variant: "destructive",
+            });
+            return;
+          }
         }
+        
+        onTasksChange?.();
       }
     }
-  }, [tasks, handleDragEnd, onTasksChange]);
+  }, [tasks, handleDragEnd, onTasksChange, toast]);
 
   // Filter and sort tasks
   const filteredAndSortedTasks = useTaskFiltering({
