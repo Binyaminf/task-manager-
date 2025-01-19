@@ -4,7 +4,6 @@ import { FolderList } from "@/components/FolderList";
 import { TaskList } from "@/components/TaskList";
 import { TaskCalendar } from "@/components/task/TaskCalendar";
 import { Task } from "@/components/TaskCard";
-import { CollapsibleFilters } from "../task/CollapsibleFilters";
 import { Button } from "../ui/button";
 import { ChevronDown, ChevronUp, LayoutGrid, List } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
