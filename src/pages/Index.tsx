@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Task } from "@/components/TaskCard";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AuthWrapper } from "@/components/auth/AuthWrapper";
-import { LoadingFallback } from "@/components/common/LoadingFallback";
 import { MainContent } from "@/components/layout/MainContent";
 
 const Index = () => {
@@ -17,25 +16,34 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Get session on load
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    setSession(session);
-  });
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        setAuthError("Failed to get session. Please try logging in again.");
+        return;
+      }
+      setSession(session);
+    });
 
-  // Listen for auth changes and handle errors
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN') {
-      setAuthError(null);
-      setSession(session);
-    } else if (event === 'SIGNED_OUT') {
-      setSession(null);
-      setAuthError(null);
-    } else if (event === 'USER_UPDATED') {
-      setSession(session);
-    } else if (event === 'PASSWORD_RECOVERY') {
-      setAuthError('Please check your email to reset your password.');
-    }
-  });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN') {
+        setAuthError(null);
+        setSession(session);
+      } else if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setAuthError(null);
+        queryClient.clear();
+      } else if (event === 'TOKEN_REFRESHED') {
+        setSession(session);
+      } else if (event === 'USER_UPDATED') {
+        setSession(session);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [queryClient]);
 
   const { data: tasks = [], isLoading, error } = useQuery({
     queryKey: ['tasks', session?.user?.id, selectedFolder],
@@ -77,6 +85,7 @@ const Index = () => {
         folder_id: task.folder_id
       }));
     },
+    enabled: !!session?.user?.id,
   });
 
   const handleNewTask = async (taskData: Partial<Task>) => {
@@ -122,7 +131,15 @@ const Index = () => {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign out",
+        variant: "destructive",
+      });
+      return;
+    }
     navigate("/");
   };
 
@@ -144,12 +161,12 @@ const Index = () => {
       tasks={tasks}
       viewMode={viewMode}
       selectedFolder={selectedFolder}
+      isLoading={isLoading}
       onSignOut={handleSignOut}
       onNewTask={handleNewTask}
       onTasksChange={handleTasksChange}
       onViewModeChange={setViewMode}
       onFolderSelect={setSelectedFolder}
-      isLoading={isLoading}
     />
   );
 };

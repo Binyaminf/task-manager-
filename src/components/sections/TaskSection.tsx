@@ -12,6 +12,7 @@ interface TaskSectionProps {
   tasks: Task[];
   viewMode: 'list' | 'calendar';
   selectedFolder: string | null;
+  isLoading?: boolean;
   onNewTask: (task: Partial<Task>) => void;
   onTasksChange: () => void;
   onFolderSelect: (folderId: string | null) => void;
@@ -21,6 +22,7 @@ export function TaskSection({
   tasks,
   viewMode,
   selectedFolder,
+  isLoading = false,
   onNewTask,
   onTasksChange,
   onFolderSelect,
@@ -79,6 +81,7 @@ export function TaskSection({
             onTasksChange={onTasksChange}
             selectedFolder={selectedFolder}
             viewMode={taskViewMode}
+            isLoading={isLoading}
           />
         ) : (
           <TaskCalendar tasks={tasks} />
