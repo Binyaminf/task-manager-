@@ -51,6 +51,9 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
         body: { 
           text: input.trim(),
           currentTime: currentTime
+        },
+        headers: {
+          'Content-Type': 'application/json'
         }
       });
 
