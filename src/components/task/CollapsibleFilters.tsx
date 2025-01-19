@@ -11,6 +11,7 @@ interface CollapsibleFiltersProps {
   statusFilter: string;
   priorityFilter: string;
   categoryFilter: string;
+  searchQuery: string;
   statuses: string[];
   priorities: string[];
   categories: string[];
@@ -19,6 +20,7 @@ interface CollapsibleFiltersProps {
   onStatusChange: (status: string) => void;
   onPriorityChange: (priority: string) => void;
   onCategoryChange: (category: string) => void;
+  onSearchChange: (query: string) => void;
 }
 
 export function CollapsibleFilters(props: CollapsibleFiltersProps) {
@@ -27,7 +29,8 @@ export function CollapsibleFilters(props: CollapsibleFiltersProps) {
   const hasActiveFilters =
     props.statusFilter !== "all" ||
     props.priorityFilter !== "all" ||
-    props.categoryFilter !== "all";
+    props.categoryFilter !== "all" ||
+    props.searchQuery.trim() !== "";
 
   return (
     <div className="bg-white rounded-lg shadow-sm mb-4">
@@ -38,7 +41,7 @@ export function CollapsibleFilters(props: CollapsibleFiltersProps) {
       >
         <div className="flex items-center gap-2">
           <Filter className="h-5 w-5 text-primary" />
-          <span className="text-lg font-semibold">Filters & Sorting</span>
+          <span className="text-lg font-semibold">Filters & Search</span>
           {hasActiveFilters && (
             <span className="bg-primary/10 text-primary text-sm px-2 py-1 rounded-full">
               Active

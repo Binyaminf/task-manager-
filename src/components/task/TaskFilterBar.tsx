@@ -1,5 +1,6 @@
 import { TaskFilters } from "../TaskFilters";
 import { TaskSorting } from "../TaskSorting";
+import { TaskSearch } from "./TaskSearch";
 import { SortField, SortOrder } from "../TaskSorting";
 
 interface TaskFilterBarProps {
@@ -8,6 +9,7 @@ interface TaskFilterBarProps {
   statusFilter: string;
   priorityFilter: string;
   categoryFilter: string;
+  searchQuery: string;
   statuses: string[];
   priorities: string[];
   categories: string[];
@@ -16,6 +18,7 @@ interface TaskFilterBarProps {
   onStatusChange: (status: string) => void;
   onPriorityChange: (priority: string) => void;
   onCategoryChange: (category: string) => void;
+  onSearchChange: (query: string) => void;
 }
 
 export function TaskFilterBar({
@@ -24,6 +27,7 @@ export function TaskFilterBar({
   statusFilter,
   priorityFilter,
   categoryFilter,
+  searchQuery,
   statuses,
   priorities,
   categories,
@@ -32,9 +36,11 @@ export function TaskFilterBar({
   onStatusChange,
   onPriorityChange,
   onCategoryChange,
+  onSearchChange,
 }: TaskFilterBarProps) {
   return (
     <div className="mb-6 space-y-4">
+      <TaskSearch searchQuery={searchQuery} onSearchChange={onSearchChange} />
       <TaskSorting
         sortField={sortField}
         sortOrder={sortOrder}

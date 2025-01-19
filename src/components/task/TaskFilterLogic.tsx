@@ -11,6 +11,7 @@ interface TaskFilterLogicProps {
   statusFilter: string;
   priorityFilter: string;
   categoryFilter: string;
+  searchQuery: string;
 }
 
 export function useTaskFiltering({
@@ -21,10 +22,12 @@ export function useTaskFiltering({
   statusFilter,
   priorityFilter,
   categoryFilter,
+  searchQuery,
 }: TaskFilterLogicProps) {
   return useMemo(() => {
     console.log('useTaskFiltering - Input tasks:', tasks);
     console.log('useTaskFiltering - selectedFolder:', selectedFolder);
+    console.log('useTaskFiltering - searchQuery:', searchQuery);
 
     // First filter by folder
     let filteredTasks = tasks;
@@ -39,6 +42,15 @@ export function useTaskFiltering({
       });
     }
 
+    // Then filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filteredTasks = filteredTasks.filter(task => 
+        task.summary.toLowerCase().includes(query) ||
+        (task.description?.toLowerCase().includes(query))
+      );
+    }
+
     console.log('After folder filtering:', filteredTasks);
 
     // Then apply other filters
@@ -49,5 +61,5 @@ export function useTaskFiltering({
     console.log('Final sorted result:', result);
 
     return result;
-  }, [tasks, selectedFolder, sortField, sortOrder, statusFilter, priorityFilter, categoryFilter]);
+  }, [tasks, selectedFolder, sortField, sortOrder, statusFilter, priorityFilter, categoryFilter, searchQuery]);
 }

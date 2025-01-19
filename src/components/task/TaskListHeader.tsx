@@ -10,6 +10,7 @@ interface TaskListHeaderProps {
   statusFilter: string;
   priorityFilter: string;
   categoryFilter: string;
+  searchQuery: string;
   filterOptions: {
     statuses: string[];
     priorities: string[];
@@ -20,6 +21,7 @@ interface TaskListHeaderProps {
   onStatusChange: (status: string) => void;
   onPriorityChange: (priority: string) => void;
   onCategoryChange: (category: string) => void;
+  onSearchChange: (query: string) => void;
   onBatchStatusChange: (status: Task['status']) => void;
   onBatchDelete: () => void;
   onBatchMoveToFolder: (folderId: string | null) => void;
@@ -33,12 +35,14 @@ export const TaskListHeader = ({
   statusFilter,
   priorityFilter,
   categoryFilter,
+  searchQuery,
   filterOptions,
   onSortFieldChange,
   onSortOrderChange,
   onStatusChange,
   onPriorityChange,
   onCategoryChange,
+  onSearchChange,
   onBatchStatusChange,
   onBatchDelete,
   onBatchMoveToFolder,
@@ -68,6 +72,7 @@ export const TaskListHeader = ({
         statusFilter={statusFilter}
         priorityFilter={priorityFilter}
         categoryFilter={categoryFilter}
+        searchQuery={searchQuery}
         statuses={filterOptions.statuses}
         priorities={filterOptions.priorities}
         categories={filterOptions.categories}
@@ -76,6 +81,7 @@ export const TaskListHeader = ({
         onStatusChange={onStatusChange}
         onPriorityChange={onPriorityChange}
         onCategoryChange={onCategoryChange}
+        onSearchChange={onSearchChange}
       />
     </div>
   );

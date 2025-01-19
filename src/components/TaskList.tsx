@@ -23,7 +23,6 @@ interface TaskListProps {
   isLoading?: boolean;
 }
 
-// Memoize the TaskList component to prevent unnecessary re-renders
 const TaskList = memo(({ 
   tasks, 
   onTasksChange, 
@@ -36,6 +35,7 @@ const TaskList = memo(({
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   const { handleTaskClick, handleDragEnd } = useTaskOperations(onTasksChange);
   const { selectedTasks, handleTaskSelect, clearSelection } = useTaskSelection();
@@ -73,6 +73,7 @@ const TaskList = memo(({
     statusFilter,
     priorityFilter,
     categoryFilter,
+    searchQuery,
   });
 
   const selectedTasksList = useMemo(() => 
@@ -101,12 +102,14 @@ const TaskList = memo(({
         statusFilter={statusFilter}
         priorityFilter={priorityFilter}
         categoryFilter={categoryFilter}
+        searchQuery={searchQuery}
         filterOptions={filterOptions}
         onSortFieldChange={setSortField}
         onSortOrderChange={setSortOrder}
         onStatusChange={setStatusFilter}
         onPriorityChange={setPriorityFilter}
         onCategoryChange={setCategoryFilter}
+        onSearchChange={setSearchQuery}
         onBatchStatusChange={(status) => handleBatchStatusChange(selectedTasks, status)}
         onBatchDelete={() => handleBatchDelete(selectedTasks)}
         onBatchMoveToFolder={(folderId) => handleBatchMoveToFolder(selectedTasks, folderId)}
@@ -119,14 +122,16 @@ const TaskList = memo(({
         statusFilter={statusFilter}
         priorityFilter={priorityFilter}
         categoryFilter={categoryFilter}
+        searchQuery={searchQuery}
         statuses={filterOptions.statuses}
         priorities={filterOptions.priorities}
         categories={filterOptions.categories}
         onSortFieldChange={setSortField}
         onSortOrderChange={setSortOrder}
         onStatusChange={setStatusFilter}
-        onPriorityChange={setPriorityFilter}
+        onPriorityChange={setPriorityChange}
         onCategoryChange={setCategoryFilter}
+        onSearchChange={setSearchQuery}
       />
 
       <Suspense fallback={viewMode === 'grid' ? <TaskSkeletonGrid /> : <TaskSkeleton />}>
