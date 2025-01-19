@@ -13,6 +13,7 @@ interface MainContentProps {
   tasks: Task[];
   viewMode: 'list' | 'calendar';
   selectedFolder: string | null;
+  isLoading: boolean;
   onSignOut: () => void;
   onNewTask: (task: Partial<Task>) => void;
   onTasksChange: () => void;
@@ -25,6 +26,7 @@ export const MainContent = ({
   tasks,
   viewMode,
   selectedFolder,
+  isLoading,
   onSignOut,
   onNewTask,
   onTasksChange,
@@ -59,6 +61,7 @@ export const MainContent = ({
                 onNewTask={onNewTask}
                 onTasksChange={onTasksChange}
                 onFolderSelect={onFolderSelect}
+                isLoading={isLoading}
               />
             </Suspense>
           </div>
