@@ -14,6 +14,8 @@ import { TaskListHeader } from "./task/TaskListHeader";
 import { TaskSkeleton, TaskSkeletonGrid } from "./common/TaskSkeleton";
 import { CollapsibleFilters } from "./task/CollapsibleFilters";
 import { TaskListView } from "./task/TaskListView";
+import { supabase } from "@/integrations/supabase/client";
+import { arrayMove } from "@dnd-kit/sortable";
 
 interface TaskListProps {
   tasks: Task[];
@@ -44,14 +46,13 @@ const TaskList = memo(({
 
   // Memoize filter options
   const filterOptions = useMemo(() => {
-    console.log('Recalculating filter options');
     const categories = ["all", ...new Set(tasks.map(task => task.category))];
     const statuses = ["all", ...new Set(tasks.map(task => task.status))];
     const priorities = ["all", ...new Set(tasks.map(task => task.priority))];
     return { categories, statuses, priorities };
   }, [tasks]);
 
-  const handleDragEndEvent = useCallback((event: DragEndEvent) => {
+  const handleDragEndEvent = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
 
@@ -61,8 +62,30 @@ const TaskList = memo(({
     if (over.id.toString().startsWith('folder-')) {
       const folderId = over.id.toString().replace('folder-', '');
       handleDragEnd(activeTask, folderId === 'none' ? null : folderId);
+    } else {
+      // Handle reordering within the same folder
+      const oldIndex = tasks.findIndex(t => t.id === active.id);
+      const newIndex = tasks.findIndex(t => t.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reorderedTasks = arrayMove(tasks, oldIndex, newIndex);
+        
+        // Update the order in the database
+        const updates = reorderedTasks.map((task, index) => ({
+          id: task.id,
+          order: index
+        }));
+
+        const { error } = await supabase
+          .from('tasks')
+          .upsert(updates, { onConflict: 'id' });
+
+        if (!error) {
+          onTasksChange?.();
+        }
+      }
     }
-  }, [tasks, handleDragEnd]);
+  }, [tasks, handleDragEnd, onTasksChange]);
 
   // Filter and sort tasks
   const filteredAndSortedTasks = useTaskFiltering({
