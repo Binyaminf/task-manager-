@@ -1,6 +1,5 @@
-import { useState, useMemo, useCallback, Suspense, memo } from "react";
+import { Suspense, memo } from "react";
 import { DeleteTaskDialog } from "./task/DeleteTaskDialog";
-import { TaskGrid } from "./task/TaskGrid";
 import { DragEndEvent } from "@dnd-kit/core";
 import { SortField, SortOrder } from "./TaskSorting";
 import { useTaskFiltering } from "./task/TaskFilterLogic";
@@ -8,15 +7,13 @@ import { useTaskOperations } from "./task/TaskOperations";
 import { useTaskSelection } from "@/hooks/useTaskSelection";
 import { useTaskDeletion } from "@/hooks/useTaskDeletion";
 import { useBatchOperations } from "@/hooks/useBatchOperations";
-import { ErrorBoundary } from "react-error-boundary";
 import { TaskListHeader } from "./task/TaskListHeader";
-import { TaskSkeleton, TaskSkeletonGrid } from "./common/TaskSkeleton";
 import { CollapsibleFilters } from "./task/CollapsibleFilters";
-import { TaskListView } from "./task/TaskListView";
-import { supabase } from "@/integrations/supabase/client";
-import { arrayMove } from "@dnd-kit/sortable";
+import { TaskListContent } from "./task/TaskListContent";
 import { Task } from "./TaskCard";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { arrayMove } from "@dnd-kit/sortable";
 
 interface TaskListProps {
   tasks: Task[];
@@ -24,37 +21,53 @@ interface TaskListProps {
   selectedFolder: string | null;
   viewMode?: 'grid' | 'list';
   isLoading?: boolean;
+  sortField: SortField;
+  sortOrder: SortOrder;
+  statusFilter: string;
+  priorityFilter: string;
+  categoryFilter: string;
+  searchQuery: string;
+  onSortFieldChange: (field: SortField) => void;
+  onSortOrderChange: (order: SortOrder) => void;
+  onStatusChange: (status: string) => void;
+  onPriorityChange: (priority: string) => void;
+  onCategoryChange: (category: string) => void;
+  onSearchChange: (query: string) => void;
 }
 
 const TaskList = memo(({ 
-  tasks, 
-  onTasksChange, 
+  tasks,
+  onTasksChange,
   selectedFolder,
   viewMode = 'grid',
-  isLoading = false
+  isLoading = false,
+  sortField,
+  sortOrder,
+  statusFilter,
+  priorityFilter,
+  categoryFilter,
+  searchQuery,
+  onSortFieldChange,
+  onSortOrderChange,
+  onStatusChange,
+  onPriorityChange,
+  onCategoryChange,
+  onSearchChange,
 }: TaskListProps) => {
-  const [sortField, setSortField] = useState<SortField>("dueDate");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
   const { toast } = useToast();
-
   const { handleTaskClick, handleDragEnd } = useTaskOperations(onTasksChange);
   const { selectedTasks, handleTaskSelect, clearSelection } = useTaskSelection();
   const { taskToDelete, handleDeleteTask, confirmDelete, closeDeleteDialog } = useTaskDeletion(onTasksChange);
   const { handleBatchDelete, handleBatchStatusChange, handleBatchMoveToFolder } = useBatchOperations(onTasksChange);
 
   // Memoize filter options
-  const filterOptions = useMemo(() => {
-    const categories = ["all", ...new Set(tasks.map(task => task.category))];
-    const statuses = ["all", ...new Set(tasks.map(task => task.status))];
-    const priorities = ["all", ...new Set(tasks.map(task => task.priority))];
-    return { categories, statuses, priorities };
-  }, [tasks]);
+  const filterOptions = {
+    categories: ["all", ...new Set(tasks.map(task => task.category))],
+    statuses: ["all", ...new Set(tasks.map(task => task.status))],
+    priorities: ["all", ...new Set(tasks.map(task => task.priority))]
+  };
 
-  const handleDragEndEvent = useCallback(async (event: DragEndEvent) => {
+  const handleDragEndEvent = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
 
@@ -65,14 +78,12 @@ const TaskList = memo(({
       const folderId = over.id.toString().replace('folder-', '');
       handleDragEnd(activeTask, folderId === 'none' ? null : folderId);
     } else {
-      // Handle reordering within the same folder
       const oldIndex = tasks.findIndex(t => t.id === active.id);
       const newIndex = tasks.findIndex(t => t.id === over.id);
       
       if (oldIndex !== -1 && newIndex !== -1) {
         const reorderedTasks = arrayMove(tasks, oldIndex, newIndex);
         
-        // Update each task's order one by one to maintain RLS
         for (let i = 0; i < reorderedTasks.length; i++) {
           const { error } = await supabase
             .from('tasks')
@@ -92,7 +103,7 @@ const TaskList = memo(({
         onTasksChange?.();
       }
     }
-  }, [tasks, handleDragEnd, onTasksChange, toast]);
+  };
 
   // Filter and sort tasks
   const filteredAndSortedTasks = useTaskFiltering({
@@ -106,25 +117,10 @@ const TaskList = memo(({
     searchQuery,
   });
 
-  const selectedTasksList = useMemo(() => 
-    tasks.filter(task => selectedTasks.has(task.id)),
-    [tasks, selectedTasks]
-  );
-
-  if (isLoading) {
-    return viewMode === 'grid' ? <TaskSkeletonGrid /> : <TaskSkeleton />;
-  }
-
-  if (!tasks || tasks.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        No tasks found. Create a new task to get started.
-      </div>
-    );
-  }
+  const selectedTasksList = tasks.filter(task => selectedTasks.has(task.id));
 
   return (
-    <ErrorBoundary fallback={<div>Something went wrong</div>}>
+    <>
       <TaskListHeader
         selectedTasks={selectedTasksList}
         sortField={sortField}
@@ -134,12 +130,12 @@ const TaskList = memo(({
         categoryFilter={categoryFilter}
         searchQuery={searchQuery}
         filterOptions={filterOptions}
-        onSortFieldChange={setSortField}
-        onSortOrderChange={setSortOrder}
-        onStatusChange={setStatusFilter}
-        onPriorityChange={setPriorityFilter}
-        onCategoryChange={setCategoryFilter}
-        onSearchChange={setSearchQuery}
+        onSortFieldChange={onSortFieldChange}
+        onSortOrderChange={onSortOrderChange}
+        onStatusChange={onStatusChange}
+        onPriorityChange={onPriorityChange}
+        onCategoryChange={onCategoryChange}
+        onSearchChange={onSearchChange}
         onBatchStatusChange={(status) => handleBatchStatusChange(selectedTasks, status)}
         onBatchDelete={() => handleBatchDelete(selectedTasks)}
         onBatchMoveToFolder={(folderId) => handleBatchMoveToFolder(selectedTasks, folderId)}
@@ -156,33 +152,25 @@ const TaskList = memo(({
         statuses={filterOptions.statuses}
         priorities={filterOptions.priorities}
         categories={filterOptions.categories}
-        onSortFieldChange={setSortField}
-        onSortOrderChange={setSortOrder}
-        onStatusChange={setStatusFilter}
-        onPriorityChange={setPriorityFilter}
-        onCategoryChange={setCategoryFilter}
-        onSearchChange={setSearchQuery}
+        onSortFieldChange={onSortFieldChange}
+        onSortOrderChange={onSortOrderChange}
+        onStatusChange={onStatusChange}
+        onPriorityChange={onPriorityChange}
+        onCategoryChange={onCategoryChange}
+        onSearchChange={onSearchChange}
       />
 
       <Suspense fallback={viewMode === 'grid' ? <TaskSkeletonGrid /> : <TaskSkeleton />}>
-        {viewMode === 'grid' ? (
-          <TaskGrid
-            tasks={filteredAndSortedTasks}
-            onTaskClick={handleTaskClick}
-            onTaskDelete={handleDeleteTask}
-            onDragEnd={handleDragEndEvent}
-            selectedTasks={selectedTasks}
-            onTaskSelect={handleTaskSelect}
-          />
-        ) : (
-          <TaskListView
-            tasks={filteredAndSortedTasks}
-            onTaskClick={handleTaskClick}
-            onTaskDelete={handleDeleteTask}
-            selectedTasks={selectedTasks}
-            onTaskSelect={handleTaskSelect}
-          />
-        )}
+        <TaskListContent
+          tasks={filteredAndSortedTasks}
+          viewMode={viewMode}
+          isLoading={isLoading}
+          selectedTasks={selectedTasks}
+          onTaskClick={handleTaskClick}
+          onTaskDelete={handleDeleteTask}
+          onDragEnd={handleDragEndEvent}
+          onTaskSelect={handleTaskSelect}
+        />
       </Suspense>
 
       <DeleteTaskDialog
@@ -190,7 +178,7 @@ const TaskList = memo(({
         onClose={closeDeleteDialog}
         onConfirm={confirmDelete}
       />
-    </ErrorBoundary>
+    </>
   );
 });
 

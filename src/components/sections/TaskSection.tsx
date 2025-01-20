@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TaskHeader } from "@/components/TaskHeader";
 import { FolderList } from "@/components/FolderList";
-import { TaskList } from "@/components/TaskList";
+import { TaskListContainer } from "@/components/task/TaskListContainer";
 import { TaskCalendar } from "@/components/task/TaskCalendar";
 import { Task } from "@/components/TaskCard";
 import { Button } from "../ui/button";
@@ -98,7 +98,7 @@ export function TaskSection({
       
       <div className="mt-6">
         {currentView === 'list' ? (
-          <TaskList 
+          <TaskListContainer 
             tasks={tasks} 
             onTasksChange={onTasksChange}
             selectedFolder={selectedFolder}
