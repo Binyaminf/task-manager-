@@ -14,6 +14,7 @@ import { Task } from "./TaskCard";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { arrayMove } from "@dnd-kit/sortable";
+import { TaskSkeleton, TaskSkeletonGrid } from "./common/TaskSkeleton";
 
 interface TaskListProps {
   tasks: Task[];
