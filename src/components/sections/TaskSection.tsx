@@ -30,13 +30,18 @@ export function TaskSection({
 }: TaskSectionProps) {
   const [taskViewMode, setTaskViewMode] = useState<'grid' | 'list'>('grid');
   const [isFoldersExpanded, setIsFoldersExpanded] = useState(true);
+  const [currentView, setCurrentView] = useState<'list' | 'calendar'>(viewMode);
 
   return (
     <section className="bg-white rounded-lg shadow-sm p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <TaskHeader onNewTask={onNewTask} />
-        <div className="flex items-center gap-4">
-          <Tabs defaultValue={viewMode} className="w-[400px]">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+          <Tabs 
+            value={currentView} 
+            onValueChange={(value) => setCurrentView(value as 'list' | 'calendar')} 
+            className="w-full sm:w-[400px]"
+          >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="list" className="flex items-center gap-2">
                 <List className="h-4 w-4" />
@@ -48,7 +53,7 @@ export function TaskSection({
               </TabsTrigger>
             </TabsList>
           </Tabs>
-          {viewMode === 'list' && (
+          {currentView === 'list' && (
             <div className="flex items-center gap-2">
               <Button
                 variant={taskViewMode === 'grid' ? 'default' : 'outline'}
@@ -92,7 +97,7 @@ export function TaskSection({
       </Collapsible>
       
       <div className="mt-6">
-        {viewMode === 'list' ? (
+        {currentView === 'list' ? (
           <TaskList 
             tasks={tasks} 
             onTasksChange={onTasksChange}
