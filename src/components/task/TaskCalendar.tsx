@@ -3,12 +3,19 @@ import { Calendar } from "@/components/ui/calendar";
 import { Task } from "@/components/TaskCard";
 import { format } from "date-fns";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TaskCalendarProps {
   tasks: Task[];
@@ -16,6 +23,8 @@ interface TaskCalendarProps {
 
 export function TaskCalendar({ tasks }: TaskCalendarProps) {
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   // Group tasks by date
   const tasksByDate = tasks.reduce((acc, task) => {
@@ -41,6 +50,30 @@ export function TaskCalendar({ tasks }: TaskCalendarProps) {
     }
   };
 
+  const TaskList = ({ tasks }: { tasks: Task[] }) => (
+    <div className="space-y-2">
+      {tasks.map((task) => (
+        <div 
+          key={task.id} 
+          className="p-2 rounded-md bg-muted/50"
+        >
+          <div className="flex items-center gap-2">
+            <Badge className={cn("w-2 h-2 rounded-full", getPriorityColor(task.priority))} />
+            <div className="font-medium">{task.summary}</div>
+          </div>
+          <div className="text-sm text-muted-foreground mt-1">
+            {format(new Date(task.dueDate), 'p')}
+          </div>
+          {task.description && (
+            <div className="text-sm text-muted-foreground mt-1">
+              {task.description}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
   // Custom day render function
   const renderDay = (day: Date) => {
     const dateKey = format(day, 'yyyy-MM-dd');
@@ -48,38 +81,35 @@ export function TaskCalendar({ tasks }: TaskCalendarProps) {
 
     if (dayTasks.length === 0) return null;
 
-    return (
+    const content = (
+      <Badge 
+        variant="secondary" 
+        className={cn(
+          "absolute bottom-1 right-1 h-4 w-4 p-0 flex items-center justify-center text-xs cursor-pointer",
+          dayTasks.some(task => task.priority === 'High') ? 'bg-red-100 text-red-600' :
+          dayTasks.some(task => task.priority === 'Medium') ? 'bg-yellow-100 text-yellow-600' :
+          'bg-green-100 text-green-600'
+        )}
+        onClick={(e) => {
+          if (isMobile) {
+            e.stopPropagation();
+            setSelectedDate(dateKey);
+          }
+        }}
+      >
+        {dayTasks.length}
+      </Badge>
+    );
+
+    return isMobile ? (
+      content
+    ) : (
       <HoverCard>
-        <HoverCardTrigger>
-          <Badge 
-            variant="secondary" 
-            className={cn(
-              "absolute bottom-1 right-1 h-4 w-4 p-0 flex items-center justify-center text-xs",
-              dayTasks.some(task => task.priority === 'High') ? 'bg-red-100 text-red-600' :
-              dayTasks.some(task => task.priority === 'Medium') ? 'bg-yellow-100 text-yellow-600' :
-              'bg-green-100 text-green-600'
-            )}
-          >
-            {dayTasks.length}
-          </Badge>
+        <HoverCardTrigger asChild>
+          {content}
         </HoverCardTrigger>
         <HoverCardContent className="w-80">
-          <div className="space-y-2">
-            {dayTasks.map((task) => (
-              <div 
-                key={task.id} 
-                className="p-2 rounded-md bg-muted/50"
-              >
-                <div className="flex items-center gap-2">
-                  <Badge className={cn("w-2 h-2 rounded-full", getPriorityColor(task.priority))} />
-                  <div className="font-medium">{task.summary}</div>
-                </div>
-                <div className="text-sm text-muted-foreground mt-1">
-                  {format(new Date(task.dueDate), 'p')}
-                </div>
-              </div>
-            ))}
-          </div>
+          <TaskList tasks={dayTasks} />
         </HoverCardContent>
       </HoverCard>
     );
@@ -101,6 +131,19 @@ export function TaskCalendar({ tasks }: TaskCalendarProps) {
           ),
         }}
       />
+
+      <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Tasks for {selectedDate ? format(new Date(selectedDate), 'PPP') : ''}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedDate && tasksByDate[selectedDate] && (
+            <TaskList tasks={tasksByDate[selectedDate]} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
