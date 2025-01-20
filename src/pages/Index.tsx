@@ -16,9 +16,11 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // Initialize auth state
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
+        console.error('Auth error:', error);
         setAuthError("Failed to get session. Please try logging in again.");
         return;
       }
@@ -28,6 +30,7 @@ const Index = () => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event);
       if (event === 'SIGNED_IN') {
         setAuthError(null);
         setSession(session);
@@ -48,48 +51,72 @@ const Index = () => {
   const { data: tasks = [], isLoading, error } = useQuery({
     queryKey: ['tasks', session?.user?.id, selectedFolder],
     queryFn: async () => {
-      if (!session?.user?.id) return [];
-      
-      let query = supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false });
-
-      if (selectedFolder) {
-        query = query.eq('folder_id', selectedFolder);
+      console.log('Fetching tasks for user:', session?.user?.id);
+      if (!session?.user?.id) {
+        console.log('No user session, returning empty array');
+        return [];
       }
       
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error('Error fetching tasks:', error);
+      try {
+        let query = supabase
+          .from('tasks')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false });
+
+        if (selectedFolder) {
+          query = query.eq('folder_id', selectedFolder);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error('Error fetching tasks:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load tasks. Please try again.",
+            variant: "destructive",
+          });
+          return [];
+        }
+
+        console.log('Tasks fetched successfully:', data);
+        return data.map((task): Task => ({
+          id: task.id,
+          summary: task.summary,
+          description: task.description || undefined,
+          dueDate: task.due_date,
+          estimatedDuration: task.estimated_duration,
+          priority: task.priority as Task["priority"],
+          status: task.status as Task["status"],
+          category: task.category,
+          externalLinks: task.external_links || undefined,
+          folder_id: task.folder_id
+        }));
+      } catch (err) {
+        console.error('Unexpected error fetching tasks:', err);
         toast({
           title: "Error",
-          description: "Failed to load tasks",
+          description: "An unexpected error occurred. Please try again.",
           variant: "destructive",
         });
         return [];
       }
-
-      return data.map((task): Task => ({
-        id: task.id,
-        summary: task.summary,
-        description: task.description || undefined,
-        dueDate: task.due_date,
-        estimatedDuration: task.estimated_duration,
-        priority: task.priority as Task["priority"],
-        status: task.status as Task["status"],
-        category: task.category,
-        externalLinks: task.external_links || undefined,
-        folder_id: task.folder_id
-      }));
     },
     enabled: !!session?.user?.id,
+    retry: 2,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   const handleNewTask = async (taskData: Partial<Task>) => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to create tasks",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const supabaseTask = {
       user_id: session.user.id,
@@ -148,6 +175,7 @@ const Index = () => {
   }
 
   if (error) {
+    console.error('Query error:', error);
     toast({
       title: "Error",
       description: "Failed to load tasks. Please try again.",
