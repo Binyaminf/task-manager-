@@ -5,8 +5,9 @@ import { TaskList } from "@/components/TaskList";
 import { TaskCalendar } from "@/components/task/TaskCalendar";
 import { Task } from "@/components/TaskCard";
 import { Button } from "../ui/button";
-import { ChevronDown, ChevronUp, LayoutGrid, List } from "lucide-react";
+import { Calendar, List, ChevronDown, ChevronUp, LayoutGrid } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 interface TaskSectionProps {
   tasks: Task[];
@@ -34,21 +35,37 @@ export function TaskSection({
     <section className="bg-white rounded-lg shadow-sm p-6">
       <div className="flex items-center justify-between mb-6">
         <TaskHeader onNewTask={onNewTask} />
-        <div className="flex items-center gap-2">
-          <Button
-            variant={taskViewMode === 'grid' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTaskViewMode('grid')}
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={taskViewMode === 'list' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTaskViewMode('list')}
-          >
-            <List className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center gap-4">
+          <Tabs defaultValue={viewMode} className="w-[400px]">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="list" className="flex items-center gap-2">
+                <List className="h-4 w-4" />
+                List View
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Calendar View
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          {viewMode === 'list' && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant={taskViewMode === 'grid' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTaskViewMode('grid')}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={taskViewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTaskViewMode('list')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
       

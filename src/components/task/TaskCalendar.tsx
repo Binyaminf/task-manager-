@@ -8,6 +8,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface TaskCalendarProps {
   tasks: Task[];
@@ -26,6 +27,20 @@ export function TaskCalendar({ tasks }: TaskCalendarProps) {
     return acc;
   }, {} as Record<string, Task[]>);
 
+  // Get priority color
+  const getPriorityColor = (priority: Task['priority']) => {
+    switch (priority) {
+      case 'High':
+        return 'bg-red-500';
+      case 'Medium':
+        return 'bg-yellow-500';
+      case 'Low':
+        return 'bg-green-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
   // Custom day render function
   const renderDay = (day: Date) => {
     const dateKey = format(day, 'yyyy-MM-dd');
@@ -38,7 +53,12 @@ export function TaskCalendar({ tasks }: TaskCalendarProps) {
         <HoverCardTrigger>
           <Badge 
             variant="secondary" 
-            className="absolute bottom-1 right-1 h-4 w-4 p-0 flex items-center justify-center text-xs"
+            className={cn(
+              "absolute bottom-1 right-1 h-4 w-4 p-0 flex items-center justify-center text-xs",
+              dayTasks.some(task => task.priority === 'High') ? 'bg-red-100 text-red-600' :
+              dayTasks.some(task => task.priority === 'Medium') ? 'bg-yellow-100 text-yellow-600' :
+              'bg-green-100 text-green-600'
+            )}
           >
             {dayTasks.length}
           </Badge>
@@ -50,8 +70,11 @@ export function TaskCalendar({ tasks }: TaskCalendarProps) {
                 key={task.id} 
                 className="p-2 rounded-md bg-muted/50"
               >
-                <div className="font-medium">{task.summary}</div>
-                <div className="text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Badge className={cn("w-2 h-2 rounded-full", getPriorityColor(task.priority))} />
+                  <div className="font-medium">{task.summary}</div>
+                </div>
+                <div className="text-sm text-muted-foreground mt-1">
                   {format(new Date(task.dueDate), 'p')}
                 </div>
               </div>
