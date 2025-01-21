@@ -25,6 +25,7 @@ const Index = () => {
         setAuthError("Failed to get session. Please try logging in again.");
         return;
       }
+      console.log('Initial session:', session);
       setSession(session);
     });
 
@@ -32,7 +33,7 @@ const Index = () => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
+      console.log('Auth state changed:', event, 'Session:', session);
       if (event === 'SIGNED_IN') {
         setAuthError(null);
         setSession(session);
@@ -63,11 +64,13 @@ const Index = () => {
         let query = supabase
           .from('tasks')
           .select('*')
-          .eq('user_id', session.user.id)
-          .order('created_at', { ascending: false });
+          .eq('user_id', session.user.id);
+
+        console.log('Initial query:', query);
 
         if (selectedFolder) {
           query = query.eq('folder_id', selectedFolder);
+          console.log('Added folder filter:', selectedFolder);
         }
         
         const { data, error } = await query;
@@ -82,8 +85,14 @@ const Index = () => {
           return [];
         }
 
-        console.log('Tasks fetched successfully:', data);
-        return data.map((task): Task => ({
+        console.log('Raw tasks data:', data);
+        
+        if (!data || data.length === 0) {
+          console.log('No tasks found for user');
+          return [];
+        }
+
+        const mappedTasks = data.map((task): Task => ({
           id: task.id,
           summary: task.summary,
           description: task.description || undefined,
@@ -95,6 +104,9 @@ const Index = () => {
           externalLinks: task.external_links || undefined,
           folder_id: task.folder_id
         }));
+
+        console.log('Mapped tasks:', mappedTasks);
+        return mappedTasks;
       } catch (err) {
         console.error('Unexpected error fetching tasks:', err);
         toast({
