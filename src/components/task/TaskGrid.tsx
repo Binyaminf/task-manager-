@@ -3,8 +3,9 @@ import { Task } from "../TaskCard";
 import { TaskCard } from "../TaskCard";
 import { DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TaskGridProps {
   tasks: Task[];
@@ -24,6 +25,7 @@ export function TaskGrid({
   onTaskSelect,
 }: TaskGridProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const isMobile = useIsMobile();
   
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -44,9 +46,9 @@ export function TaskGrid({
   // Calculate the number of columns based on screen width
   const getColumnCount = () => {
     if (typeof window === 'undefined') return 1;
-    if (window.innerWidth >= 1024) return 3; // lg
+    if (window.innerWidth >= 1280) return 3; // xl
     if (window.innerWidth >= 768) return 2; // md
-    return 1; // default
+    return 1; // mobile
   };
 
   const columnCount = getColumnCount();
@@ -55,13 +57,9 @@ export function TaskGrid({
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 200,
+    estimateSize: () => isMobile ? 250 : 200,
     overscan: 5,
   });
-
-  console.log('TaskGrid - Number of tasks:', tasks.length);
-  console.log('TaskGrid - Column count:', columnCount);
-  console.log('TaskGrid - Row count:', rowCount);
 
   if (!tasks || tasks.length === 0) {
     return (
@@ -85,7 +83,7 @@ export function TaskGrid({
         className="h-[600px] overflow-auto"
       >
         <div
-          className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 relative"
+          className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 relative"
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
           }}

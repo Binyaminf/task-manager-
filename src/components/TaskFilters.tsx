@@ -5,6 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TaskFiltersProps {
   statuses: string[];
@@ -29,10 +30,12 @@ export function TaskFilters({
   onPriorityChange,
   onCategoryChange,
 }: TaskFiltersProps) {
+  const isMobile = useIsMobile();
+
   return (
-    <div className="flex flex-wrap gap-4">
+    <div className={`flex flex-col md:flex-row gap-2 md:gap-4 ${isMobile ? 'w-full' : ''}`}>
       <Select value={statusFilter} onValueChange={onStatusChange}>
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className={isMobile ? 'w-full' : 'w-[180px]'}>
           <SelectValue placeholder="Filter by status..." />
         </SelectTrigger>
         <SelectContent>
@@ -45,7 +48,7 @@ export function TaskFilters({
       </Select>
 
       <Select value={priorityFilter} onValueChange={onPriorityChange}>
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className={isMobile ? 'w-full' : 'w-[180px]'}>
           <SelectValue placeholder="Filter by priority..." />
         </SelectTrigger>
         <SelectContent>
@@ -58,7 +61,7 @@ export function TaskFilters({
       </Select>
 
       <Select value={categoryFilter} onValueChange={onCategoryChange}>
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className={isMobile ? 'w-full' : 'w-[180px]'}>
           <SelectValue placeholder="Filter by category..." />
         </SelectTrigger>
         <SelectContent>
