@@ -15,7 +15,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // Data stays fresh for 5 minutes
-      gcTime: 1000 * 60 * 30, // Cache garbage collection time (formerly cacheTime)
+      gcTime: 1000 * 60 * 30, // Cache garbage collection time
       retry: 2, // Retry failed requests twice
       refetchOnWindowFocus: false, // Don't refetch when window regains focus
     },
@@ -99,9 +99,10 @@ const TaskEditWrapper = () => {
 };
 
 const App = () => {
-  // Configure Supabase auth with correct redirect URL
-  supabase.auth.getSession().then(({ data: { session } }) => {
+  // Initialize Supabase auth state
+  supabase.auth.onAuthStateChange((event, session) => {
     if (session) {
+      // Update the Supabase client configuration
       const currentUrl = window.location.origin;
       supabase.auth.setSession({
         access_token: session.access_token,
