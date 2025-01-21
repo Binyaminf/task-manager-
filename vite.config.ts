@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     strictPort: true,
     hmr: {
-      clientPort: undefined,
+      clientPort: 443,
       path: '/@vite/client',
       timeout: 30000,
       overlay: true
