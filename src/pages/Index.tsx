@@ -18,6 +18,7 @@ const Index = () => {
 
   // Initialize auth state
   useEffect(() => {
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error('Auth error:', error);
@@ -27,6 +28,7 @@ const Index = () => {
       setSession(session);
     });
 
+    // Set up auth state listener
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
