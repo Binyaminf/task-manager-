@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Task } from './TaskCard';
 import { TaskForm } from './TaskForm';
+import { useState } from 'react';
 
 interface TaskEditProps {
   tasks: Task[];
@@ -12,6 +13,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({ tasks, onSave }) => {
   const navigate = useNavigate();
   const { taskId } = useParams<{ taskId: string }>();
   const task = tasks.find(t => t.id === taskId);
+  const [isOpen, setIsOpen] = useState(true);
   
   if (!task) return <div className="container mx-auto p-6">Task not found</div>;
 
@@ -20,16 +22,20 @@ const TaskEdit: React.FC<TaskEditProps> = ({ tasks, onSave }) => {
     navigate(-1);
   };
 
-  const handleCancel = () => {
-    navigate(-1);
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      navigate(-1);
+    }
   };
 
   return (
     <div className="container mx-auto p-6">
       <h2 className="text-2xl font-bold mb-6">Edit Task</h2>
       <TaskForm
+        open={isOpen}
+        onOpenChange={handleOpenChange}
         onSubmit={handleSave}
-        onCancel={handleCancel}
         initialData={task}
       />
     </div>

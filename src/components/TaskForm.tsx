@@ -41,7 +41,7 @@ export function TaskForm({ open, onOpenChange, onSubmit, initialData }: TaskForm
   };
 
   const handleDateChange = (date: Date | undefined) => {
-    setFormData((prev) => ({ ...prev, dueDate: date }));
+    setFormData((prev) => ({ ...prev, dueDate: date?.toISOString() }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
