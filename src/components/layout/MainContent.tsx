@@ -34,7 +34,7 @@ export const MainContent = ({
   onFolderSelect,
 }: MainContentProps) => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background transition-colors duration-300">
       <ErrorBoundary fallback={<div>Something went wrong</div>}>
         <Header
           userEmail={session.user.email}
