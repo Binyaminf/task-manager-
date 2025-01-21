@@ -99,21 +99,9 @@ const TaskEditWrapper = () => {
 };
 
 const App = () => {
-  // Initialize Supabase auth state
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (session) {
-      // Update the Supabase client configuration
-      const currentUrl = window.location.origin;
-      supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      });
-    }
-  });
-
   return (
-    <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
         <TooltipProvider>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -122,8 +110,8 @@ const App = () => {
           <Toaster />
           <Sonner />
         </TooltipProvider>
-      </QueryClientProvider>
-    </BrowserRouter>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 };
 
