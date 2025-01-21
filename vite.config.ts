@@ -11,7 +11,9 @@ export default defineConfig(({ mode }) => ({
     strictPort: true,
     hmr: {
       clientPort: 8080,
-      host: 'localhost'
+      path: '/@vite/client',
+      timeout: 30000,
+      overlay: true
     }
   },
   plugins: [
