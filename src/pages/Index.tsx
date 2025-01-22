@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Task } from "@/components/TaskCard";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { AuthWrapper } from "@/components/auth/AuthWrapper";
 import { MainContent } from "@/components/layout/MainContent";
-import { AuthStateHandler } from "@/components/auth/AuthStateHandler";
 import { useTaskData } from "@/hooks/useTaskData";
 
 const Index = () => {
@@ -19,6 +18,16 @@ const Index = () => {
   const [authError, setAuthError] = useState<string | null>(null);
 
   const { data: tasks = [], isLoading, error } = useTaskData(session?.user?.id, selectedFolder);
+
+  useEffect(() => {
+    // Check for session on component mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (!session) {
+        navigate('/');
+      }
+    });
+  }, [navigate]);
 
   const handleNewTask = async (taskData: Partial<Task>) => {
     if (!session?.user?.id) {
@@ -96,24 +105,18 @@ const Index = () => {
   }
 
   return (
-    <>
-      <AuthStateHandler 
-        onSessionChange={setSession}
-        onError={setAuthError}
-      />
-      <MainContent
-        session={session}
-        tasks={tasks}
-        viewMode={viewMode}
-        selectedFolder={selectedFolder}
-        isLoading={isLoading}
-        onSignOut={handleSignOut}
-        onNewTask={handleNewTask}
-        onTasksChange={handleTasksChange}
-        onViewModeChange={setViewMode}
-        onFolderSelect={setSelectedFolder}
-      />
-    </>
+    <MainContent
+      session={session}
+      tasks={tasks}
+      viewMode={viewMode}
+      selectedFolder={selectedFolder}
+      isLoading={isLoading}
+      onSignOut={handleSignOut}
+      onNewTask={handleNewTask}
+      onTasksChange={handleTasksChange}
+      onViewModeChange={setViewMode}
+      onFolderSelect={setSelectedFolder}
+    />
   );
 };
 

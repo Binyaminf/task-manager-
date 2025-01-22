@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { AuthError, Session, AuthChangeEvent } from "@supabase/supabase-js";
+import { useNavigate } from "react-router-dom";
 
 interface AuthStateHandlerProps {
   onSessionChange: (session: Session | null) => void;
@@ -12,6 +13,7 @@ interface AuthStateHandlerProps {
 export function AuthStateHandler({ onSessionChange, onError }: AuthStateHandlerProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Get initial session
@@ -27,7 +29,10 @@ export function AuthStateHandler({ onSessionChange, onError }: AuthStateHandlerP
         return;
       }
       console.log('Initial session:', session);
-      onSessionChange(session);
+      if (session) {
+        onSessionChange(session);
+        navigate('/');
+      }
     });
 
     // Set up auth state listener
@@ -44,6 +49,7 @@ export function AuthStateHandler({ onSessionChange, onError }: AuthStateHandlerP
             title: "Welcome back!",
             description: "You have successfully signed in.",
           });
+          navigate('/');
           break;
         
         case 'SIGNED_OUT':
@@ -54,6 +60,7 @@ export function AuthStateHandler({ onSessionChange, onError }: AuthStateHandlerP
             title: "Signed out",
             description: "You have been signed out successfully.",
           });
+          navigate('/');
           break;
         
         case 'TOKEN_REFRESHED':
@@ -74,7 +81,7 @@ export function AuthStateHandler({ onSessionChange, onError }: AuthStateHandlerP
     });
 
     return () => subscription.unsubscribe();
-  }, [onSessionChange, onError, queryClient, toast]);
+  }, [onSessionChange, onError, queryClient, toast, navigate]);
 
   return null;
 }
