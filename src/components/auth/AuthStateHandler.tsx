@@ -2,9 +2,10 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { AuthError, Session, AuthChangeEvent } from "@supabase/supabase-js";
 
 interface AuthStateHandlerProps {
-  onSessionChange: (session: any) => void;
+  onSessionChange: (session: Session | null) => void;
   onError: (error: string | null) => void;
 }
 
@@ -32,7 +33,7 @@ export function AuthStateHandler({ onSessionChange, onError }: AuthStateHandlerP
     // Set up auth state listener
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session) => {
       console.log('Auth state changed:', event, 'Session:', session);
       
       switch (event) {
@@ -61,16 +62,6 @@ export function AuthStateHandler({ onSessionChange, onError }: AuthStateHandlerP
         
         case 'USER_UPDATED':
           onSessionChange(session);
-          break;
-
-        case 'USER_DELETED':
-          onSessionChange(null);
-          onError("User account has been deleted.");
-          toast({
-            title: "Account Deleted",
-            description: "Your account has been deleted.",
-            variant: "destructive",
-          });
           break;
 
         case 'PASSWORD_RECOVERY':
