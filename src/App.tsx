@@ -9,7 +9,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Task } from "./components/TaskCard";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
+import { Session } from "@supabase/supabase-js";
+import { useState } from "react";
+import { AuthStateHandler } from "./components/auth/AuthStateHandler";
 
 // Configure the query client with optimal settings
 const queryClient = new QueryClient({
@@ -100,34 +102,17 @@ const TaskEditWrapper = () => {
 };
 
 const App = () => {
-  // Initialize Supabase auth state
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
-      if (session) {
-        try {
-          // Update the Supabase client configuration with the new session
-          await supabase.auth.setSession({
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-          });
-        } catch (error) {
-          console.error('Error setting session:', error);
-        }
-      }
-    });
-
-    // Cleanup subscription on unmount
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <TooltipProvider>
+          <AuthStateHandler 
+            onSessionChange={setSession}
+            onError={setAuthError}
+          />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/edit/:taskId" element={<TaskEditWrapper />} />
