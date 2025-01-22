@@ -84,9 +84,9 @@ export const TaskCard = memo(({
       style={style}
       {...attributes}
       {...listeners}
-      className="cursor-move px-2 sm:px-0"
+      className="cursor-move px-2 sm:px-0 touch-manipulation"
     >
-      <Card className={`w-full animate-task-fade-in ${isSelected ? 'ring-2 ring-primary' : ''}`}>
+      <Card className={`w-full animate-task-fade-in shadow-sm hover:shadow-md transition-shadow ${isSelected ? 'ring-2 ring-primary' : ''}`}>
         <CardHeader className="pb-2 px-3 sm:px-6">
           <div className="flex justify-between items-start gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -95,35 +95,41 @@ export const TaskCard = memo(({
                   checked={isSelected}
                   onCheckedChange={onSelect}
                   onClick={(e) => e.stopPropagation()}
-                  className="mt-1"
+                  className="mt-1 h-5 w-5 sm:h-4 sm:w-4"
                 />
               )}
-              <CardTitle className="text-base sm:text-lg font-semibold truncate">{task.summary}</CardTitle>
+              <CardTitle className="text-sm sm:text-base font-semibold truncate">{task.summary}</CardTitle>
             </div>
             <div className="flex gap-1 sm:gap-2 flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={onClick}
-                className="h-7 w-7 sm:h-8 sm:w-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick();
+                }}
+                className="h-8 w-8 sm:h-9 sm:w-9"
               >
-                <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Edit2 className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={onDelete}
-                className="h-7 w-7 sm:h-8 sm:w-8 text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="h-8 w-8 sm:h-9 sm:w-9 text-destructive"
               >
-                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
           </div>
         </CardHeader>
         
-        <CardContent className="pb-2 px-3 sm:px-6">
+        <CardContent className="pb-3 px-3 sm:px-6">
           {task.description && (
-            <p className="text-xs sm:text-sm text-muted-foreground mb-3">{task.description}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground mb-3 line-clamp-2">{task.description}</p>
           )}
           
           <TaskBadges

@@ -43,8 +43,8 @@ export const MainContent = ({
           onSignOut={onSignOut}
         />
 
-        <main className="container mx-auto py-2 px-2 md:py-8 md:px-6">
-          <div className="space-y-4 md:space-y-8">
+        <main className="container mx-auto py-2 px-2 md:py-6 md:px-4 lg:py-8 lg:px-6">
+          <div className="space-y-4 md:space-y-6 lg:space-y-8">
             <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
               <PrioritySection />
             </Suspense>
