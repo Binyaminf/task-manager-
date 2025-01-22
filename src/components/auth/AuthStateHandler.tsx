@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface AuthStateHandlerProps {
   onSessionChange: (session: any) => void;
@@ -9,6 +10,7 @@ interface AuthStateHandlerProps {
 
 export function AuthStateHandler({ onSessionChange, onError }: AuthStateHandlerProps) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Get initial session
@@ -16,6 +18,11 @@ export function AuthStateHandler({ onSessionChange, onError }: AuthStateHandlerP
       if (error) {
         console.error('Auth error:', error);
         onError("Failed to get session. Please try logging in again.");
+        toast({
+          title: "Authentication Error",
+          description: "Failed to get session. Please try logging in again.",
+          variant: "destructive",
+        });
         return;
       }
       console.log('Initial session:', session);
@@ -27,22 +34,56 @@ export function AuthStateHandler({ onSessionChange, onError }: AuthStateHandlerP
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, 'Session:', session);
-      if (event === 'SIGNED_IN') {
-        onError(null);
-        onSessionChange(session);
-      } else if (event === 'SIGNED_OUT') {
-        onSessionChange(null);
-        onError(null);
-        queryClient.clear();
-      } else if (event === 'TOKEN_REFRESHED') {
-        onSessionChange(session);
-      } else if (event === 'USER_UPDATED') {
-        onSessionChange(session);
+      
+      switch (event) {
+        case 'SIGNED_IN':
+          onError(null);
+          onSessionChange(session);
+          toast({
+            title: "Welcome back!",
+            description: "You have successfully signed in.",
+          });
+          break;
+        
+        case 'SIGNED_OUT':
+          onSessionChange(null);
+          onError(null);
+          queryClient.clear();
+          toast({
+            title: "Signed out",
+            description: "You have been signed out successfully.",
+          });
+          break;
+        
+        case 'TOKEN_REFRESHED':
+          onSessionChange(session);
+          break;
+        
+        case 'USER_UPDATED':
+          onSessionChange(session);
+          break;
+
+        case 'USER_DELETED':
+          onSessionChange(null);
+          onError("User account has been deleted.");
+          toast({
+            title: "Account Deleted",
+            description: "Your account has been deleted.",
+            variant: "destructive",
+          });
+          break;
+
+        case 'PASSWORD_RECOVERY':
+          toast({
+            title: "Password Recovery",
+            description: "Please check your email for password reset instructions.",
+          });
+          break;
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [onSessionChange, onError, queryClient]);
+  }, [onSessionChange, onError, queryClient, toast]);
 
   return null;
 }
