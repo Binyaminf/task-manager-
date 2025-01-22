@@ -84,12 +84,12 @@ export const TaskCard = memo(({
       style={style}
       {...attributes}
       {...listeners}
-      className="cursor-move"
+      className="cursor-move px-2 sm:px-0"
     >
       <Card className={`w-full animate-task-fade-in ${isSelected ? 'ring-2 ring-primary' : ''}`}>
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-2">
+        <CardHeader className="pb-2 px-3 sm:px-6">
+          <div className="flex justify-between items-start gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               {onSelect && (
                 <Checkbox
                   checked={isSelected}
@@ -98,32 +98,32 @@ export const TaskCard = memo(({
                   className="mt-1"
                 />
               )}
-              <CardTitle className="text-lg font-semibold">{task.summary}</CardTitle>
+              <CardTitle className="text-base sm:text-lg font-semibold truncate">{task.summary}</CardTitle>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1 sm:gap-2 flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={onClick}
-                className="h-8 w-8 cursor-pointer"
+                className="h-7 w-7 sm:h-8 sm:w-8"
               >
-                <Edit2 className="h-4 w-4" />
+                <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={onDelete}
-                className="h-8 w-8 text-destructive cursor-pointer"
+                className="h-7 w-7 sm:h-8 sm:w-8 text-destructive"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
             </div>
           </div>
         </CardHeader>
         
-        <CardContent className="pb-2">
+        <CardContent className="pb-2 px-3 sm:px-6">
           {task.description && (
-            <p className="text-sm text-muted-foreground mb-4">{task.description}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground mb-3">{task.description}</p>
           )}
           
           <TaskBadges

@@ -33,7 +33,7 @@ export function TaskSection({
   const [currentView, setCurrentView] = useState<'list' | 'calendar'>(viewMode);
 
   return (
-    <section className="bg-white rounded-lg shadow-sm p-6">
+    <section className="bg-white rounded-lg shadow-sm p-3 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <TaskHeader onNewTask={onNewTask} />
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
