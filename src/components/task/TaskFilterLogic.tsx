@@ -25,41 +25,33 @@ export function useTaskFiltering({
   searchQuery,
 }: TaskFilterLogicProps) {
   return useMemo(() => {
-    console.log('useTaskFiltering - Input tasks:', tasks);
-    console.log('useTaskFiltering - selectedFolder:', selectedFolder);
-    console.log('useTaskFiltering - searchQuery:', searchQuery);
+    // First filter by folder for better performance
+    let filteredTasks = selectedFolder !== null
+      ? tasks.filter(task => task.folder_id === selectedFolder)
+      : tasks;
 
-    // First filter by folder
-    let filteredTasks = tasks;
-    
-    // Only filter by folder if a folder is selected
-    if (selectedFolder !== null) {
-      console.log('Filtering by folder:', selectedFolder);
-      filteredTasks = tasks.filter(task => {
-        const matches = task.folder_id === selectedFolder;
-        console.log('Task:', task.id, 'folder_id:', task.folder_id, 'matches:', matches);
-        return matches;
-      });
-    }
-
-    // Then filter by search query
+    // Then apply search filter if present
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filteredTasks = filteredTasks.filter(task => 
         task.summary.toLowerCase().includes(query) ||
-        (task.description?.toLowerCase().includes(query))
+        task.description?.toLowerCase().includes(query)
       );
     }
 
-    console.log('After folder filtering:', filteredTasks);
+    // Apply other filters
+    filteredTasks = filterTasks(filteredTasks, statusFilter, priorityFilter, categoryFilter);
 
-    // Then apply other filters
-    const filtered = filterTasks(filteredTasks, statusFilter, priorityFilter, categoryFilter);
-    console.log('After other filters:', filtered);
-
-    const result = sortTasks(filtered, sortField, sortOrder);
-    console.log('Final sorted result:', result);
-
-    return result;
-  }, [tasks, selectedFolder, sortField, sortOrder, statusFilter, priorityFilter, categoryFilter, searchQuery]);
+    // Finally sort the filtered tasks
+    return sortTasks(filteredTasks, sortField, sortOrder);
+  }, [
+    tasks,
+    selectedFolder,
+    sortField,
+    sortOrder,
+    statusFilter,
+    priorityFilter,
+    categoryFilter,
+    searchQuery
+  ]);
 }

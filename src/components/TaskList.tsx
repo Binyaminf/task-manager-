@@ -1,4 +1,4 @@
-import { Suspense, memo } from "react";
+import { Suspense, memo, useMemo } from "react";
 import { DeleteTaskDialog } from "./task/DeleteTaskDialog";
 import { DragEndEvent } from "@dnd-kit/core";
 import { SortField, SortOrder } from "./TaskSorting";
@@ -61,14 +61,15 @@ const TaskList = memo(({
   const { taskToDelete, handleDeleteTask, confirmDelete, closeDeleteDialog } = useTaskDeletion(onTasksChange);
   const { handleBatchDelete, handleBatchStatusChange, handleBatchMoveToFolder } = useBatchOperations(onTasksChange);
 
-  // Memoize filter options
-  const filterOptions = {
+  // Memoize filter options to prevent unnecessary re-renders
+  const filterOptions = useMemo(() => ({
     categories: ["all", ...new Set(tasks.map(task => task.category))],
     statuses: ["all", ...new Set(tasks.map(task => task.status))],
     priorities: ["all", ...new Set(tasks.map(task => task.priority))]
-  };
+  }), [tasks]);
 
-  const handleDragEndEvent = async (event: DragEndEvent) => {
+  // Memoize drag end handler
+  const handleDragEndEvent = useMemo(() => async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
 
@@ -85,28 +86,30 @@ const TaskList = memo(({
       if (oldIndex !== -1 && newIndex !== -1) {
         const reorderedTasks = arrayMove(tasks, oldIndex, newIndex);
         
-        for (let i = 0; i < reorderedTasks.length; i++) {
-          const { error } = await supabase
-            .from('tasks')
-            .update({ order: i })
-            .eq('id', reorderedTasks[i].id);
+        try {
+          for (let i = 0; i < reorderedTasks.length; i++) {
+            const { error } = await supabase
+              .from('tasks')
+              .update({ order: i })
+              .eq('id', reorderedTasks[i].id);
 
-          if (error) {
-            toast({
-              title: "Error",
-              description: "Failed to update task order",
-              variant: "destructive",
-            });
-            return;
+            if (error) throw error;
           }
+          
+          onTasksChange?.();
+        } catch (error) {
+          console.error('Error updating task order:', error);
+          toast({
+            title: "Error",
+            description: "Failed to update task order",
+            variant: "destructive",
+          });
         }
-        
-        onTasksChange?.();
       }
     }
-  };
+  }, [tasks, handleDragEnd, onTasksChange, toast]);
 
-  // Filter and sort tasks
+  // Filter and sort tasks using memoized function
   const filteredAndSortedTasks = useTaskFiltering({
     tasks,
     selectedFolder,
@@ -118,7 +121,10 @@ const TaskList = memo(({
     searchQuery,
   });
 
-  const selectedTasksList = tasks.filter(task => selectedTasks.has(task.id));
+  const selectedTasksList = useMemo(() => 
+    tasks.filter(task => selectedTasks.has(task.id)),
+    [tasks, selectedTasks]
+  );
 
   return (
     <>

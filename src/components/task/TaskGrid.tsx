@@ -3,7 +3,6 @@ import { Task } from "../TaskCard";
 import { TaskCard } from "../TaskCard";
 import { DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
-import { useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -16,14 +15,14 @@ interface TaskGridProps {
   onTaskSelect?: (taskId: string, selected: boolean) => void;
 }
 
-export function TaskGrid({ 
+export const TaskGrid = React.memo(({ 
   tasks, 
   onTaskClick, 
   onTaskDelete, 
   onDragEnd,
   selectedTasks = new Set(),
   onTaskSelect,
-}: TaskGridProps) {
+}: TaskGridProps) => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const isMobile = useIsMobile();
   
@@ -43,25 +42,30 @@ export function TaskGrid({
 
   const parentRef = React.useRef<HTMLDivElement>(null);
 
-  // Calculate the number of columns based on screen width
-  const getColumnCount = () => {
+  // Memoize column count calculation
+  const columnCount = React.useMemo(() => {
     if (typeof window === 'undefined') return 1;
     const width = window.innerWidth;
     if (width >= 1536) return 4; // 2xl
     if (width >= 1280) return 3; // xl
     if (width >= 768) return 2; // md
     return 1; // mobile
-  };
+  }, []);
 
-  const columnCount = getColumnCount();
   const rowCount = Math.ceil(tasks.length / columnCount);
 
+  // Optimize virtualizer configuration
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
     estimateSize: () => isMobile ? 280 : 240,
-    overscan: 5,
+    overscan: 3,
+    paddingStart: 16,
+    paddingEnd: 16,
   });
+
+  // Memoize task IDs for SortableContext
+  const taskIds = React.useMemo(() => tasks.map(t => t.id), [tasks]);
 
   if (!tasks || tasks.length === 0) {
     return (
@@ -82,15 +86,16 @@ export function TaskGrid({
     >
       <div 
         ref={parentRef}
-        className="h-[calc(100vh-300px)] overflow-auto px-2 sm:px-4"
+        className="h-[calc(100vh-300px)] overflow-auto px-2 sm:px-4 will-change-transform"
       >
         <div
           className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 relative"
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
+            contain: 'paint',
           }}
         >
-          <SortableContext items={tasks.map(t => t.id)} strategy={rectSortingStrategy}>
+          <SortableContext items={taskIds} strategy={rectSortingStrategy}>
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const startIndex = virtualRow.index * columnCount;
               return (
@@ -110,6 +115,7 @@ export function TaskGrid({
                           width: `${100 / columnCount}%`,
                           transform: `translateY(${virtualRow.start}px)`,
                           padding: '0 8px',
+                          willChange: 'transform',
                         }}
                       >
                         <TaskCard
@@ -142,4 +148,6 @@ export function TaskGrid({
       </DragOverlay>
     </DndContext>
   );
-}
+});
+
+TaskGrid.displayName = 'TaskGrid';
