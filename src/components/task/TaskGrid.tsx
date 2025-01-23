@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { useState } from 'react'; // Add this import
 import { Task } from "../TaskCard";
 import { TaskCard } from "../TaskCard";
 import { DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
@@ -24,7 +23,7 @@ export const TaskGrid = React.memo(({
   selectedTasks = new Set(),
   onTaskSelect,
 }: TaskGridProps) => {
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = React.useState<string | null>(null);
   const isMobile = useIsMobile();
   
   const sensors = useSensors(
