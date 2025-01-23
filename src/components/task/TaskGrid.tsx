@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Task } from "../TaskCard";
+import { Task } from "@/types/task";
 import { TaskCard } from "../TaskCard";
 import { DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";

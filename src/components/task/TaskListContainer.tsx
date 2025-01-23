@@ -1,4 +1,4 @@
-import { Task } from "../TaskCard";
+import { Task } from "@/types/task";
 import { TaskList } from "../TaskList";
 import { useState } from "react";
 import { SortField, SortOrder } from "../TaskSorting";

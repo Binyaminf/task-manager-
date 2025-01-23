@@ -3,7 +3,7 @@ import { TaskHeader } from "@/components/TaskHeader";
 import { FolderList } from "@/components/FolderList";
 import { TaskListContainer } from "@/components/task/TaskListContainer";
 import { TaskCalendar } from "@/components/task/TaskCalendar";
-import { Task } from "@/components/TaskCard";
+import { Task } from "@/types/task";
 import { Button } from "../ui/button";
 import { Calendar, List, ChevronDown, ChevronUp, LayoutGrid } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";

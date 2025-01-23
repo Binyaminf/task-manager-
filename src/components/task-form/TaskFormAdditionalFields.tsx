@@ -1,6 +1,6 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Task } from "../TaskCard";
+import { Task } from "@/types/task";
 
 interface TaskFormAdditionalFieldsProps {
   formData: Partial<Task>;

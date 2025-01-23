@@ -1,4 +1,4 @@
-import { Task } from "../TaskCard";
+import { Task } from "@/types/task";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";

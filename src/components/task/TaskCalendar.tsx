@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
-import { Task } from "@/components/TaskCard";
+import { Task } from "@/types/task";
 import { format } from "date-fns";
 import {
   Dialog,

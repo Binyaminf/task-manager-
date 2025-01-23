@@ -8,7 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Task } from "../TaskCard";
+import { Task } from "@/types/task";
 
 interface DeleteTaskDialogProps {
   taskToDelete: Task | null;

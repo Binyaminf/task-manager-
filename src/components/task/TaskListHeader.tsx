@@ -1,6 +1,6 @@
 import { TaskFilterBar } from "./TaskFilterBar";
 import { BatchActions } from "./BatchActions";
-import { Task } from "../TaskCard";
+import { Task } from "@/types/task";
 import { SortField, SortOrder } from "../TaskSorting";
 
 interface TaskListHeaderProps {

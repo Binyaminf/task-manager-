@@ -1,4 +1,4 @@
-import { Task } from "../TaskCard";
+import { Task } from "@/types/task";
 import { TaskGrid } from "./TaskGrid";
 import { TaskListView } from "./TaskListView";
 import { DragEndEvent } from "@dnd-kit/core";

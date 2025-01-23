@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Task } from "../TaskCard";
+import { Task } from "@/types/task";
 import { addDays, isPast, parseISO } from "date-fns";
 import { PriorityTask } from "./PriorityTask";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
