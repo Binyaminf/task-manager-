@@ -46,8 +46,10 @@ export function TaskGrid({
   // Calculate the number of columns based on screen width
   const getColumnCount = () => {
     if (typeof window === 'undefined') return 1;
-    if (window.innerWidth >= 1280) return 3; // xl
-    if (window.innerWidth >= 768) return 2; // md
+    const width = window.innerWidth;
+    if (width >= 1536) return 4; // 2xl
+    if (width >= 1280) return 3; // xl
+    if (width >= 768) return 2; // md
     return 1; // mobile
   };
 
@@ -57,7 +59,7 @@ export function TaskGrid({
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => isMobile ? 250 : 200,
+    estimateSize: () => isMobile ? 280 : 240,
     overscan: 5,
   });
 
@@ -80,10 +82,10 @@ export function TaskGrid({
     >
       <div 
         ref={parentRef}
-        className="h-[600px] overflow-auto"
+        className="h-[calc(100vh-300px)] overflow-auto px-2 sm:px-4"
       >
         <div
-          className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 relative"
+          className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 relative"
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
           }}

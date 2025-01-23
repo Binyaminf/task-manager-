@@ -95,10 +95,15 @@ export const TaskCard = memo(({
                   checked={isSelected}
                   onCheckedChange={onSelect}
                   onClick={(e) => e.stopPropagation()}
-                  className="mt-1 h-5 w-5 sm:h-4 sm:w-4"
+                  className="mt-1 h-5 w-5 sm:h-4 sm:w-4 touch-manipulation"
                 />
               )}
-              <CardTitle className="text-sm sm:text-base font-semibold truncate">{task.summary}</CardTitle>
+              <CardTitle 
+                className="text-base sm:text-lg font-semibold truncate cursor-pointer"
+                onClick={() => onClick()}
+              >
+                {task.summary}
+              </CardTitle>
             </div>
             <div className="flex gap-1 sm:gap-2 flex-shrink-0">
               <Button
@@ -108,9 +113,9 @@ export const TaskCard = memo(({
                   e.stopPropagation();
                   onClick();
                 }}
-                className="h-8 w-8 sm:h-9 sm:w-9"
+                className="h-10 w-10 sm:h-9 sm:w-9 touch-manipulation"
               >
-                <Edit2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Edit2 className="h-5 w-5" />
               </Button>
               <Button
                 variant="ghost"
@@ -119,17 +124,19 @@ export const TaskCard = memo(({
                   e.stopPropagation();
                   onDelete();
                 }}
-                className="h-8 w-8 sm:h-9 sm:w-9 text-destructive"
+                className="h-10 w-10 sm:h-9 sm:w-9 text-destructive touch-manipulation"
               >
-                <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Trash2 className="h-5 w-5" />
               </Button>
             </div>
           </div>
         </CardHeader>
         
-        <CardContent className="pb-3 px-3 sm:px-6">
+        <CardContent className="pb-4 px-3 sm:px-6">
           {task.description && (
-            <p className="text-xs sm:text-sm text-muted-foreground mb-3 line-clamp-2">{task.description}</p>
+            <p className="text-sm sm:text-base text-muted-foreground mb-4 line-clamp-2">
+              {task.description}
+            </p>
           )}
           
           <TaskBadges
