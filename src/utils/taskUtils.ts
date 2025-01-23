@@ -1,4 +1,4 @@
-import { Task } from "@/components/TaskCard";
+import { Task } from "@/types/task";
 
 export const sortTasks = (
   tasks: Task[],

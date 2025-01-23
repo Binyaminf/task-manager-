@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Task } from "../TaskCard";
+import { Task } from "@/types/task";
 import { filterTasks, sortTasks } from "@/utils/taskUtils";
 import { SortField, SortOrder } from "../TaskSorting";
 

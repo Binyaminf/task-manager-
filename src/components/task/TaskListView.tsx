@@ -1,4 +1,4 @@
-import { Task } from "../TaskCard";
+import { Task } from "@/types/task";
 import { Checkbox } from "../ui/checkbox";
 import { format } from "date-fns";
 import { Badge } from "../ui/badge";

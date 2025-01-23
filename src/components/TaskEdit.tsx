@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Task } from './TaskCard';
+import { Task } from "@/types/task";
 import { TaskForm } from './TaskForm';
 import { useState } from 'react';
 

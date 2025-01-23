@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Task } from "@/components/TaskCard";
+import { Task } from "@/types/task";
 import { Header } from "@/components/layout/Header";
 import { PrioritySection } from "@/components/sections/PrioritySection";
 import { AISection } from "@/components/sections/AISection";

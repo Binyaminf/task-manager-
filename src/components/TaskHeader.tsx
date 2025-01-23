@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { Task } from "./TaskCard";
+import { Task } from "@/types/task";
 import {
   Dialog,
   DialogContent,
