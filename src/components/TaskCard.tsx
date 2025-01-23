@@ -14,19 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { TaskBadges } from "./task/TaskBadges";
 import { TaskMetadata } from "./task/TaskMetadata";
 import { TaskLinks } from "./task/TaskLinks";
-
-export interface Task {
-  id: string;
-  summary: string;
-  description?: string;
-  dueDate: string;
-  estimatedDuration: string;
-  priority: "High" | "Medium" | "Low";
-  status: "To Do" | "In Progress" | "Done";
-  category: string;
-  externalLinks?: string[];
-  folder_id: string | null;
-}
+import { Task } from "@/types/task";
 
 interface TaskCardProps {
   task: Task;

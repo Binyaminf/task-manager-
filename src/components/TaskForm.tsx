@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { TaskFormFields } from "./task-form/TaskFormFields";
 import { TaskFormSelects } from "./task-form/TaskFormSelects";
 import { TaskFormAdditionalFields } from "./task-form/TaskFormAdditionalFields";
-import { Task } from "./TaskCard";
+import { Task } from "@/types/task";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
 

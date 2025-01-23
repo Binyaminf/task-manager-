@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Task } from "@/components/TaskCard";
+import { Task } from "@/types/task";
 import { useToast } from "@/hooks/use-toast";
 
 export function useTaskData(userId: string | undefined, selectedFolder: string | null) {

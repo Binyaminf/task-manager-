@@ -10,7 +10,7 @@ import { useBatchOperations } from "@/hooks/useBatchOperations";
 import { TaskListHeader } from "./task/TaskListHeader";
 import { CollapsibleFilters } from "./task/CollapsibleFilters";
 import { TaskListContent } from "./task/TaskListContent";
-import { Task } from "./TaskCard";
+import { Task } from "@/types/task";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { arrayMove } from "@dnd-kit/sortable";

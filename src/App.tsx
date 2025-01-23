@@ -7,7 +7,7 @@ import Index from "./pages/Index";
 import TaskEdit from "./components/TaskEdit";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Task } from "./components/TaskCard";
+import { Task } from "@/types/task";
 import { useToast } from "@/hooks/use-toast";
 import { Session } from "@supabase/supabase-js";
 import { useState } from "react";
