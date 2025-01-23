@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useState } from 'react'; // Add this import
 import { Task } from "../TaskCard";
 import { TaskCard } from "../TaskCard";
 import { DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
