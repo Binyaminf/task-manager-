@@ -44,6 +44,7 @@ export const TaskCard = memo(({
   onSelect,
 }: TaskCardProps) => {
   const [folderName, setFolderName] = useState<string>("");
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     const fetchFolderName = async () => {
@@ -85,8 +86,18 @@ export const TaskCard = memo(({
       {...attributes}
       {...listeners}
       className="cursor-move px-2 sm:px-0 touch-manipulation"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <Card className={`w-full animate-task-fade-in shadow-sm hover:shadow-md transition-shadow ${isSelected ? 'ring-2 ring-primary' : ''}`}>
+      <Card 
+        className={`
+          w-full animate-task-fade-in shadow-sm 
+          transition-all duration-200 ease-in-out
+          ${isHovered ? 'shadow-md scale-[1.01]' : ''}
+          ${isSelected ? 'ring-2 ring-primary' : ''}
+          ${isDragging ? 'rotate-[1deg]' : ''}
+        `}
+      >
         <CardHeader className="pb-2 px-3 sm:px-6">
           <div className="flex justify-between items-start gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -95,11 +106,11 @@ export const TaskCard = memo(({
                   checked={isSelected}
                   onCheckedChange={onSelect}
                   onClick={(e) => e.stopPropagation()}
-                  className="mt-1 h-5 w-5 sm:h-4 sm:w-4 touch-manipulation"
+                  className="mt-1 h-5 w-5 sm:h-4 sm:w-4 touch-manipulation transition-transform duration-200 hover:scale-110"
                 />
               )}
               <CardTitle 
-                className="text-base sm:text-lg font-semibold truncate cursor-pointer"
+                className="text-base sm:text-lg font-semibold truncate cursor-pointer transition-colors hover:text-primary"
                 onClick={() => onClick()}
               >
                 {task.summary}
@@ -113,7 +124,7 @@ export const TaskCard = memo(({
                   e.stopPropagation();
                   onClick();
                 }}
-                className="h-10 w-10 sm:h-9 sm:w-9 touch-manipulation"
+                className="h-10 w-10 sm:h-9 sm:w-9 touch-manipulation transition-transform duration-200 hover:scale-110"
               >
                 <Edit2 className="h-5 w-5" />
               </Button>
@@ -124,7 +135,7 @@ export const TaskCard = memo(({
                   e.stopPropagation();
                   onDelete();
                 }}
-                className="h-10 w-10 sm:h-9 sm:w-9 text-destructive touch-manipulation"
+                className="h-10 w-10 sm:h-9 sm:w-9 text-destructive touch-manipulation transition-transform duration-200 hover:scale-110"
               >
                 <Trash2 className="h-5 w-5" />
               </Button>
@@ -134,7 +145,7 @@ export const TaskCard = memo(({
         
         <CardContent className="pb-4 px-3 sm:px-6">
           {task.description && (
-            <p className="text-sm sm:text-base text-muted-foreground mb-4 line-clamp-2">
+            <p className="text-sm sm:text-base text-muted-foreground mb-4 line-clamp-2 transition-colors duration-200">
               {task.description}
             </p>
           )}
