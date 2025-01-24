@@ -1,11 +1,12 @@
 import { CardContent } from "@/components/ui/card";
 import { TaskBadges } from "./TaskBadges";
 import { TaskMetadata } from "./TaskMetadata";
+import { Task } from "@/types/task";
 
 interface TaskCardContentProps {
   description?: string;
-  priority: string;
-  status: string;
+  priority: Task['priority'];
+  status: Task['status'];
   category: string;
   folderName: string;
   dueDate: string;
