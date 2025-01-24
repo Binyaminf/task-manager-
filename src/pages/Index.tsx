@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { AuthWrapper } from "@/components/auth/AuthWrapper";
 import { MainContent } from "@/components/layout/MainContent";
-import { useTaskData } from "@/hooks/useTaskData";
+import { useTaskData } from "@/hooks/task/useTaskData";
 
 const Index = () => {
   const { toast } = useToast();
