@@ -24,7 +24,19 @@ export function useTaskData(userId: string | undefined, selectedFolder: string |
         throw error;
       }
 
-      return data as Task[];
+      // Map the database fields to match our Task interface
+      return data.map(item => ({
+        id: item.id,
+        summary: item.summary,
+        description: item.description || undefined,
+        dueDate: item.due_date,
+        estimatedDuration: item.estimated_duration,
+        priority: item.priority as Task['priority'],
+        status: item.status as Task['status'],
+        category: item.category,
+        externalLinks: item.external_links || undefined,
+        folder_id: item.folder_id,
+      }));
     },
     enabled: !!userId,
   });
