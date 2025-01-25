@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { Task } from "@/types/task";
 import { SortField, SortOrder } from "@/components/TaskSorting";
-import { useTaskFiltering } from "@/components/task/TaskFilterLogic";
-import { useTaskOperations } from "@/components/task/TaskOperations";
-import { useTaskSelection } from "@/hooks/task/useTaskSelection";
-import { useTaskDeletion } from "@/hooks/task/useTaskDeletion";
-import { useBatchOperations } from "@/hooks/task/useBatchOperations";
+import { useTaskFiltering } from "./useTaskFiltering";
+import { useTaskOperations } from "./useTaskOperations";
+import { useTaskSelection } from "./useTaskSelection";
+import { useTaskDeletion } from "./useTaskDeletion";
+import { useBatchOperations } from "./useBatchOperations";
 import { DragEndEvent } from "@dnd-kit/core";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,6 +47,18 @@ export function useTaskListLogic({
     priorities: ["all", ...new Set(tasks.map(task => task.priority))]
   }), [tasks]);
 
+  // Filter and sort tasks
+  const filteredAndSortedTasks = useTaskFiltering({
+    tasks,
+    selectedFolder,
+    sortField,
+    sortOrder,
+    statusFilter,
+    priorityFilter,
+    categoryFilter,
+    searchQuery,
+  });
+
   // Memoize drag end handler
   const handleDragEndEvent = useMemo(() => async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -87,18 +99,6 @@ export function useTaskListLogic({
       }
     }
   }, [tasks, handleDragEnd, onTasksChange, toast]);
-
-  // Filter and sort tasks
-  const filteredAndSortedTasks = useTaskFiltering({
-    tasks,
-    selectedFolder,
-    sortField,
-    sortOrder,
-    statusFilter,
-    priorityFilter,
-    categoryFilter,
-    searchQuery,
-  });
 
   const selectedTasksList = useMemo(() => 
     tasks.filter(task => selectedTasks.has(task.id)),
