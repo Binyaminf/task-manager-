@@ -1,3 +1,4 @@
+import React, { useState, useMemo } from "react";
 import { Task } from "@/types/task";
 import { Checkbox } from "../ui/checkbox";
 import { format } from "date-fns";
@@ -5,7 +6,6 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Clock, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { getPriorityColor, getStatusColor } from "./TaskColors";
-import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
