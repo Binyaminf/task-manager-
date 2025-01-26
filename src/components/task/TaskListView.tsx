@@ -5,8 +5,9 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Clock, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { getPriorityColor, getStatusColor } from "./TaskColors";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface TaskListViewProps {
   tasks: Task[];
@@ -27,6 +28,7 @@ export function TaskListView({
 }: TaskListViewProps) {
   const [groupBy, setGroupBy] = useState<GroupKey>('none');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const parentRef = React.useRef<HTMLDivElement>(null);
 
   const toggleGroup = (groupName: string) => {
     const newExpandedGroups = new Set(expandedGroups);
@@ -38,7 +40,7 @@ export function TaskListView({
     setExpandedGroups(newExpandedGroups);
   };
 
-  const groupTasks = () => {
+  const groupedTasks = useMemo(() => {
     if (groupBy === 'none') return { 'All Tasks': tasks };
 
     return tasks.reduce((groups, task) => {
@@ -49,12 +51,33 @@ export function TaskListView({
       groups[key].push(task);
       return groups;
     }, {} as Record<string, Task[]>);
-  };
+  }, [tasks, groupBy]);
+
+  // Flatten grouped tasks for virtualization
+  const flattenedTasks = useMemo(() => {
+    const flattened: Array<{ type: 'group' | 'task', data: any }> = [];
+    
+    Object.entries(groupedTasks).forEach(([groupName, groupTasks]) => {
+      flattened.push({ type: 'group', data: { name: groupName, count: groupTasks.length } });
+      if (expandedGroups.has(groupName)) {
+        groupTasks.forEach(task => {
+          flattened.push({ type: 'task', data: task });
+        });
+      }
+    });
+    
+    return flattened;
+  }, [groupedTasks, expandedGroups]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: flattenedTasks.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: (index) => flattenedTasks[index].type === 'group' ? 48 : 120,
+    overscan: 5,
+  });
 
   const TaskItem = ({ task }: { task: Task }) => (
-    <div
-      className="flex items-start gap-4 p-4 bg-white border rounded-lg hover:bg-gray-50 transition-colors animate-task-fade-in"
-    >
+    <div className="flex items-start gap-4 p-4 bg-white border rounded-lg hover:bg-gray-50 transition-colors animate-task-fade-in">
       {onTaskSelect && (
         <Checkbox
           checked={selectedTasks.has(task.id)}
@@ -107,8 +130,6 @@ export function TaskListView({
     </div>
   );
 
-  const groupedTasks = groupTasks();
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2 p-2">
@@ -124,32 +145,52 @@ export function TaskListView({
         ))}
       </div>
 
-      <div className="space-y-4">
-        {Object.entries(groupedTasks).map(([groupName, groupTasks]) => (
-          <div key={groupName} className="space-y-2">
-            <div
-              className="flex items-center gap-2 p-2 cursor-pointer touch-manipulation"
-              onClick={() => toggleGroup(groupName)}
-            >
-              {expandedGroups.has(groupName) ? (
-                <ChevronUp className="h-5 w-5" />
-              ) : (
-                <ChevronDown className="h-5 w-5" />
-              )}
-              <h3 className="font-semibold text-lg">
-                {groupName} ({groupTasks.length})
-              </h3>
-            </div>
+      <div 
+        ref={parentRef} 
+        className="h-[calc(100vh-400px)] overflow-auto"
+      >
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const item = flattenedTasks[virtualRow.index];
             
-            {expandedGroups.has(groupName) && (
-              <div className="space-y-3 pl-2 sm:pl-6">
-                {groupTasks.map((task) => (
-                  <TaskItem key={task.id} task={task} />
-                ))}
+            return (
+              <div
+                key={virtualRow.index}
+                className="absolute top-0 left-0 w-full"
+                style={{
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                {item.type === 'group' ? (
+                  <div
+                    className="flex items-center gap-2 p-2 cursor-pointer touch-manipulation"
+                    onClick={() => toggleGroup(item.data.name)}
+                  >
+                    {expandedGroups.has(item.data.name) ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
+                    <h3 className="font-semibold text-lg">
+                      {item.data.name} ({item.data.count})
+                    </h3>
+                  </div>
+                ) : (
+                  <div className="px-2">
+                    <TaskItem task={item.data} />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

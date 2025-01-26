@@ -25,6 +25,7 @@ export const TaskGrid = React.memo(({
 }: TaskGridProps) => {
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const isMobile = useIsMobile();
+  const parentRef = React.useRef<HTMLDivElement>(null);
   
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -40,21 +41,33 @@ export const TaskGrid = React.memo(({
     })
   );
 
-  const parentRef = React.useRef<HTMLDivElement>(null);
+  // Optimize column count calculation with resize observer
+  const [columnCount, setColumnCount] = React.useState(1);
+  
+  React.useEffect(() => {
+    const updateColumnCount = () => {
+      const width = window.innerWidth;
+      if (width >= 1536) setColumnCount(4); // 2xl
+      else if (width >= 1280) setColumnCount(3); // xl
+      else if (width >= 768) setColumnCount(2); // md
+      else setColumnCount(1); // mobile
+    };
 
-  // Memoize column count calculation
-  const columnCount = React.useMemo(() => {
-    if (typeof window === 'undefined') return 1;
-    const width = window.innerWidth;
-    if (width >= 1536) return 4; // 2xl
-    if (width >= 1280) return 3; // xl
-    if (width >= 768) return 2; // md
-    return 1; // mobile
+    const resizeObserver = new ResizeObserver(() => {
+      updateColumnCount();
+    });
+
+    if (parentRef.current) {
+      resizeObserver.observe(parentRef.current);
+    }
+
+    updateColumnCount(); // Initial calculation
+
+    return () => resizeObserver.disconnect();
   }, []);
 
   const rowCount = Math.ceil(tasks.length / columnCount);
 
-  // Optimize virtualizer configuration
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
@@ -64,7 +77,7 @@ export const TaskGrid = React.memo(({
     paddingEnd: 16,
   });
 
-  // Memoize task IDs for SortableContext
+  // Memoize task IDs
   const taskIds = React.useMemo(() => tasks.map(t => t.id), [tasks]);
 
   if (!tasks || tasks.length === 0) {
@@ -87,12 +100,12 @@ export const TaskGrid = React.memo(({
       <div 
         ref={parentRef}
         className="h-[calc(100vh-300px)] overflow-auto px-2 sm:px-4 will-change-transform"
+        style={{ contain: 'paint layout' }}
       >
         <div
-          className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 relative"
+          className="relative"
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
-            contain: 'paint',
           }}
         >
           <SortableContext items={taskIds} strategy={rectSortingStrategy}>
@@ -108,13 +121,12 @@ export const TaskGrid = React.memo(({
                     return (
                       <div
                         key={task.id}
+                        className="absolute left-0 top-0 w-full px-2"
                         style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: `${(columnIndex / columnCount) * 100}%`,
-                          width: `${100 / columnCount}%`,
                           transform: `translateY(${virtualRow.start}px)`,
-                          padding: '0 8px',
+                          width: `${100 / columnCount}%`,
+                          left: `${(columnIndex / columnCount) * 100}%`,
+                          height: `${virtualRow.size}px`,
                           willChange: 'transform',
                         }}
                       >
