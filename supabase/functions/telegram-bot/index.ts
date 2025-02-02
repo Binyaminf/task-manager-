@@ -1,25 +1,34 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { Bot, webhookCallback } from "https://deno.land/x/grammy@v1.21.1/mod.ts"
+import { HfInference } from 'https://esm.sh/@huggingface/inference@2.3.2'
 
 const bot = new Bot(Deno.env.get("TELEGRAM_BOT_TOKEN") || "")
+const hf = new HfInference(Deno.env.get("HUGGING_FACE_ACCESS_TOKEN"))
 
 // Command handlers
 bot.command("start", async (ctx) => {
   await ctx.reply(
     "👋 Welcome to your Task Manager bot!\n\n" +
-    "Available commands:\n" +
-    "/tasks - List your tasks\n" +
-    "/add - Add a new task\n" +
-    "/help - Show this help message"
+    "You can:\n" +
+    "1. Use commands like /tasks and /help\n" +
+    "2. Or just chat naturally - I'll understand what you need!\n\n" +
+    "Try saying things like:\n" +
+    "• Show me my tasks\n" +
+    "• Add a task to review the project by Friday\n" +
+    "• What's on my todo list?"
   )
 })
 
 bot.command("help", async (ctx) => {
   await ctx.reply(
     "🤖 Task Manager Bot Help:\n\n" +
+    "Commands:\n" +
     "/tasks - List your recent tasks\n" +
-    "/add <task> - Add a new task\n" +
-    "Example: /add Buy groceries"
+    "/add <task> - Add a new task\n\n" +
+    "Or just chat naturally! Try saying:\n" +
+    "• Create a high priority task for tomorrow\n" +
+    "• What tasks are due this week?\n" +
+    "• Add a meeting with the team"
   )
 })
 
@@ -66,11 +75,38 @@ bot.command("tasks", async (ctx) => {
   }
 })
 
-bot.command("add", async (ctx) => {
+// Handle natural language messages
+bot.on("message:text", async (ctx) => {
   try {
-    const taskSummary = ctx.match
-    if (!taskSummary) {
-      await ctx.reply("Please provide a task description.\nExample: /add Buy groceries")
+    const text = ctx.message.text
+
+    // Skip if it's a command
+    if (text.startsWith('/')) return
+
+    console.log('Processing message:', text)
+
+    // Classify the intent using Hugging Face
+    const classification = await hf.textClassification({
+      model: 'facebook/bart-large-mnli',
+      inputs: text,
+      parameters: {
+        candidate_labels: [
+          "create task",
+          "list tasks",
+          "update task",
+          "delete task",
+          "other"
+        ]
+      }
+    })
+
+    console.log('Classification result:', classification)
+
+    const intent = classification.labels[0]
+    const confidence = classification.scores[0]
+
+    if (confidence < 0.5) {
+      await ctx.reply("I'm not sure what you want to do. Try being more specific or use commands like /tasks or /add.")
       return
     }
 
@@ -80,37 +116,79 @@ bot.command("add", async (ctx) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
     )
 
-    // Get user's Telegram ID
-    const telegramId = ctx.from?.id.toString()
+    switch (intent) {
+      case "create task": {
+        // Process task creation using the existing process-task-text function
+        const { data, error } = await supabase.functions.invoke('process-task-text', {
+          body: { 
+            text: text,
+            currentTime: new Date().toISOString()
+          }
+        })
 
-    // Add task to Supabase
-    const { data: task, error } = await supabase
-      .from("tasks")
-      .insert([{
-        summary: taskSummary,
-        status: "TODO",
-        priority: "MEDIUM",
-        due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
-        estimated_duration: "1h",
-        category: "Telegram"
-      }])
-      .select()
-      .single()
+        if (error) throw error
 
-    if (error) {
-      throw error
+        if (data.type === 'create') {
+          const { error: createError } = await supabase
+            .from('tasks')
+            .insert([{
+              summary: data.task.summary,
+              description: data.task.description,
+              due_date: data.task.dueDate,
+              estimated_duration: data.task.estimatedDuration,
+              priority: data.task.priority,
+              status: "To Do",
+              category: data.task.category
+            }])
+
+          if (createError) throw createError
+
+          await ctx.reply(
+            "✅ Task created!\n\n" +
+            `Summary: ${data.task.summary}\n` +
+            `Due: ${new Date(data.task.dueDate).toLocaleDateString()}\n` +
+            `Priority: ${data.task.priority}\n` +
+            `Category: ${data.task.category}`
+          )
+        }
+        break
+      }
+
+      case "list tasks": {
+        // Reuse the /tasks command logic
+        const { data: tasks, error } = await supabase
+          .from("tasks")
+          .select("summary, status, priority, due_date")
+          .order("created_at", { ascending: false })
+          .limit(5)
+
+        if (error) throw error
+
+        if (!tasks || tasks.length === 0) {
+          await ctx.reply("You don't have any tasks yet!")
+          return
+        }
+
+        const taskList = tasks
+          .map((task, index) => {
+            const dueDate = task.due_date ? new Date(task.due_date).toLocaleDateString() : "No due date"
+            return `${index + 1}. ${task.summary}\n   📅 ${dueDate} | ⚡ ${task.priority} | 📋 ${task.status}`
+          })
+          .join("\n\n")
+
+        await ctx.reply("📝 Here are your tasks:\n\n" + taskList)
+        break
+      }
+
+      default:
+        await ctx.reply(
+          "I understood you want to " + intent + ", but I'm not sure how to help with that yet.\n" +
+          "Try creating or listing tasks, or use /help to see what I can do!"
+        )
     }
-
-    await ctx.reply(
-      "✅ Task added successfully!\n\n" +
-      `Summary: ${task.summary}\n` +
-      `Status: ${task.status}\n` +
-      `Priority: ${task.priority}\n` +
-      `Due Date: ${new Date(task.due_date).toLocaleDateString()}`
-    )
   } catch (error) {
-    console.error("Error adding task:", error)
-    await ctx.reply("Sorry, there was an error adding your task. Please try again later.")
+    console.error("Error processing message:", error)
+    await ctx.reply("Sorry, I encountered an error processing your request. Please try again or use /help to see available commands.")
   }
 })
 
