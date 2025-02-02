@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useTransition } from "react";
 import { Task } from "@/types/task";
 import { Checkbox } from "../ui/checkbox";
 import { format } from "date-fns";
@@ -17,8 +17,6 @@ interface TaskListViewProps {
   onTaskSelect?: (taskId: string, selected: boolean) => void;
 }
 
-type GroupKey = 'status' | 'priority' | 'category' | 'none';
-
 // Memoized TaskItem component for better performance
 const TaskItem = React.memo(({ 
   task, 
@@ -33,7 +31,10 @@ const TaskItem = React.memo(({
   isSelected?: boolean;
   onTaskSelect?: (taskId: string, selected: boolean) => void;
 }) => (
-  <div className="flex items-start gap-4 p-4 bg-white border rounded-lg hover:bg-gray-50 transition-colors animate-task-fade-in">
+  <div 
+    className="flex items-start gap-4 p-4 bg-white border rounded-lg hover:bg-gray-50 transition-colors animate-task-fade-in"
+    style={{ contain: 'content' }}
+  >
     {onTaskSelect && (
       <Checkbox
         checked={isSelected}
@@ -44,7 +45,11 @@ const TaskItem = React.memo(({
       />
     )}
     
-    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onTaskClick(task)}>
+    <div 
+      className="flex-1 min-w-0 cursor-pointer" 
+      onClick={() => onTaskClick(task)}
+      style={{ contain: 'content' }}
+    >
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
         <h3 className="font-medium text-base sm:text-lg truncate">{task.summary}</h3>
         <div className="flex flex-wrap gap-2">
@@ -95,20 +100,23 @@ export function TaskListView({
   selectedTasks,
   onTaskSelect,
 }: TaskListViewProps) {
-  const [groupBy, setGroupBy] = useState<GroupKey>('none');
+  const [isPending, startTransition] = useTransition();
+  const [groupBy, setGroupBy] = useState<'none' | 'status' | 'priority' | 'category'>('none');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const parentRef = React.useRef<HTMLDivElement>(null);
 
   // Memoize group toggle handler
   const toggleGroup = useCallback((groupName: string) => {
-    setExpandedGroups(prev => {
-      const newSet = new Set(prev);
-      if (prev.has(groupName)) {
-        newSet.delete(groupName);
-      } else {
-        newSet.add(groupName);
-      }
-      return newSet;
+    startTransition(() => {
+      setExpandedGroups(prev => {
+        const newSet = new Set(prev);
+        if (prev.has(groupName)) {
+          newSet.delete(groupName);
+        } else {
+          newSet.add(groupName);
+        }
+        return newSet;
+      });
     });
   }, []);
 
@@ -154,25 +162,33 @@ export function TaskListView({
     paddingEnd: 8,
   });
 
+  // Memoize the group buttons to prevent unnecessary re-renders
+  const groupButtons = useMemo(() => (
+    <div className="flex flex-wrap gap-2 p-2">
+      {(['none', 'status', 'priority', 'category'] as const).map((option) => (
+        <Button
+          key={option}
+          variant={groupBy === option ? "default" : "outline"}
+          onClick={() => setGroupBy(option)}
+          className="capitalize h-10 px-4 touch-manipulation"
+        >
+          {option === 'none' ? 'No Grouping' : option}
+        </Button>
+      ))}
+    </div>
+  ), [groupBy]);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2 p-2">
-        {(['none', 'status', 'priority', 'category'] as const).map((option) => (
-          <Button
-            key={option}
-            variant={groupBy === option ? "default" : "outline"}
-            onClick={() => setGroupBy(option)}
-            className="capitalize h-10 px-4 touch-manipulation"
-          >
-            {option === 'none' ? 'No Grouping' : option}
-          </Button>
-        ))}
-      </div>
+      {groupButtons}
 
       <div 
         ref={parentRef} 
         className="h-[calc(100vh-400px)] overflow-auto"
-        style={{ contain: 'paint layout' }}
+        style={{ 
+          contain: 'strict',
+          willChange: 'transform',
+        }}
       >
         <div
           style={{
@@ -192,12 +208,14 @@ export function TaskListView({
                   height: `${virtualRow.size}px`,
                   transform: `translateY(${virtualRow.start}px)`,
                   willChange: 'transform',
+                  contain: 'content',
                 }}
               >
                 {item.type === 'group' ? (
                   <div
                     className="flex items-center gap-2 p-2 cursor-pointer touch-manipulation"
                     onClick={() => toggleGroup(item.data.name)}
+                    style={{ contain: 'content' }}
                   >
                     {expandedGroups.has(item.data.name) ? (
                       <ChevronUp className="h-5 w-5" />
