@@ -41,21 +41,19 @@ export const TaskGrid = React.memo(({
     })
   );
 
-  // Optimize column count calculation with resize observer
+  // Optimize column count calculation with ResizeObserver
   const [columnCount, setColumnCount] = React.useState(1);
   
   React.useEffect(() => {
     const updateColumnCount = () => {
-      const width = window.innerWidth;
+      const width = parentRef.current?.clientWidth ?? window.innerWidth;
       if (width >= 1536) setColumnCount(4); // 2xl
       else if (width >= 1280) setColumnCount(3); // xl
       else if (width >= 768) setColumnCount(2); // md
       else setColumnCount(1); // mobile
     };
 
-    const resizeObserver = new ResizeObserver(() => {
-      updateColumnCount();
-    });
+    const resizeObserver = new ResizeObserver(updateColumnCount);
 
     if (parentRef.current) {
       resizeObserver.observe(parentRef.current);
@@ -68,10 +66,11 @@ export const TaskGrid = React.memo(({
 
   const rowCount = Math.ceil(tasks.length / columnCount);
 
+  // Optimize virtualization configuration
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => isMobile ? 280 : 240,
+    estimateSize: React.useCallback(() => isMobile ? 280 : 240, [isMobile]),
     overscan: 3,
     paddingStart: 16,
     paddingEnd: 16,
@@ -99,8 +98,8 @@ export const TaskGrid = React.memo(({
     >
       <div 
         ref={parentRef}
-        className="h-[calc(100vh-300px)] overflow-auto px-2 sm:px-4 will-change-transform"
-        style={{ contain: 'paint layout' }}
+        className="h-[calc(100vh-300px)] overflow-auto px-2 sm:px-4"
+        style={{ contain: 'paint layout', willChange: 'transform' }}
       >
         <div
           className="relative"
