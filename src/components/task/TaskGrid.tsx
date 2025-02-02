@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useTransition } from 'react';
 import { Task } from "@/types/task";
 import { TaskCard } from "../TaskCard";
 import { DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
@@ -23,10 +23,12 @@ export const TaskGrid = React.memo(({
   selectedTasks = new Set(),
   onTaskSelect,
 }: TaskGridProps) => {
-  const [activeId, setActiveId] = React.useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [activeId, setActiveId] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const parentRef = React.useRef<HTMLDivElement>(null);
   
+  // Optimize sensors configuration
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: {
@@ -41,16 +43,18 @@ export const TaskGrid = React.memo(({
     })
   );
 
-  // Optimize column count calculation with ResizeObserver
-  const [columnCount, setColumnCount] = React.useState(1);
+  // Memoize column count calculation with ResizeObserver
+  const [columnCount, setColumnCount] = useState(1);
   
-  React.useEffect(() => {
+  useEffect(() => {
     const updateColumnCount = () => {
-      const width = parentRef.current?.clientWidth ?? window.innerWidth;
-      if (width >= 1536) setColumnCount(4); // 2xl
-      else if (width >= 1280) setColumnCount(3); // xl
-      else if (width >= 768) setColumnCount(2); // md
-      else setColumnCount(1); // mobile
+      startTransition(() => {
+        const width = parentRef.current?.clientWidth ?? window.innerWidth;
+        if (width >= 1536) setColumnCount(4); // 2xl
+        else if (width >= 1280) setColumnCount(3); // xl
+        else if (width >= 768) setColumnCount(2); // md
+        else setColumnCount(1); // mobile
+      });
     };
 
     const resizeObserver = new ResizeObserver(updateColumnCount);
@@ -70,14 +74,14 @@ export const TaskGrid = React.memo(({
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
-    estimateSize: React.useCallback(() => isMobile ? 280 : 240, [isMobile]),
+    estimateSize: useCallback(() => isMobile ? 280 : 240, [isMobile]),
     overscan: 3,
     paddingStart: 16,
     paddingEnd: 16,
   });
 
   // Memoize task IDs
-  const taskIds = React.useMemo(() => tasks.map(t => t.id), [tasks]);
+  const taskIds = useMemo(() => tasks.map(t => t.id), [tasks]);
 
   if (!tasks || tasks.length === 0) {
     return (
@@ -99,7 +103,10 @@ export const TaskGrid = React.memo(({
       <div 
         ref={parentRef}
         className="h-[calc(100vh-300px)] overflow-auto px-2 sm:px-4"
-        style={{ contain: 'paint layout', willChange: 'transform' }}
+        style={{ 
+          contain: 'strict',
+          willChange: 'transform',
+        }}
       >
         <div
           className="relative"
@@ -127,6 +134,7 @@ export const TaskGrid = React.memo(({
                           left: `${(columnIndex / columnCount) * 100}%`,
                           height: `${virtualRow.size}px`,
                           willChange: 'transform',
+                          contain: 'content',
                         }}
                       >
                         <TaskCard
