@@ -16,7 +16,9 @@ export function TelegramSettings() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleVerification = async () => {
+  const handleVerification = async (e: React.FormEvent) => {
+    e.preventDefault(); // Prevent form submission from refreshing the page
+    
     if (!verificationCode) {
       toast({
         title: "Error",
@@ -74,17 +76,17 @@ export function TelegramSettings() {
             3. Enter the code below to link your account
           </p>
         </div>
-        <div className="flex space-x-2">
+        <form onSubmit={handleVerification} className="flex space-x-2">
           <Input
             placeholder="Enter verification code"
             value={verificationCode}
             onChange={(e) => setVerificationCode(e.target.value)}
             className="max-w-[200px]"
           />
-          <Button onClick={handleVerification} disabled={isLoading}>
+          <Button type="submit" disabled={isLoading}>
             {isLoading ? "Verifying..." : "Verify"}
           </Button>
-        </div>
+        </form>
       </CardContent>
     </Card>
   );
