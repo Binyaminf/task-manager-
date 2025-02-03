@@ -2,11 +2,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { Bot, webhookCallback } from "https://deno.land/x/grammy@v1.21.1/mod.ts"
 import { HfInference } from 'https://esm.sh/@huggingface/inference@2.3.2'
 
+console.log('Initializing Telegram bot...');
+
 const bot = new Bot(Deno.env.get("TELEGRAM_BOT_TOKEN") || "")
 const hf = new HfInference(Deno.env.get("HUGGING_FACE_ACCESS_TOKEN"))
 
 // Command handlers
 bot.command("start", async (ctx) => {
+  console.log('Received /start command from:', ctx.from);
   try {
     const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
     const supabase = createClient(
@@ -16,24 +19,28 @@ bot.command("start", async (ctx) => {
 
     const telegramId = ctx.from?.id.toString()
     if (!telegramId) {
+      console.error('No Telegram ID found in context');
       await ctx.reply("Error: Could not identify Telegram user.")
       return
     }
+
+    console.log('Checking authentication for Telegram ID:', telegramId);
 
     // Check if user is already authenticated
     const { data: existingUser, error: fetchError } = await supabase
       .from('telegram_users')
       .select('user_id')
       .eq('telegram_id', telegramId)
-      .single()
+      .maybeSingle()
 
-    if (fetchError && fetchError.code !== 'PGRST116') {
+    if (fetchError) {
       console.error('Error checking user:', fetchError)
       await ctx.reply("An error occurred while checking your authentication status.")
       return
     }
 
     if (existingUser) {
+      console.log('Existing user found:', existingUser);
       await ctx.reply(
         "👋 Welcome back to your Task Manager bot!\n\n" +
         "You can:\n" +
@@ -49,9 +56,8 @@ bot.command("start", async (ctx) => {
 
     // Generate a unique verification code
     const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+    console.log('Generated verification code:', verificationCode);
     
-    // Store verification code temporarily (you might want to use Redis or similar in production)
-    // For now, we'll store it in memory
     await ctx.reply(
       "🔐 To use this bot, you need to link it with your Task Manager account.\n\n" +
       "Please follow these steps:\n\n" +
@@ -125,11 +131,13 @@ bot.command("tasks", async (ctx) => {
 
 // Handle natural language messages
 bot.on("message:text", async (ctx) => {
+  console.log('Received text message:', ctx.message.text);
   try {
     const text = ctx.message.text
     const telegramId = ctx.from?.id.toString()
 
     if (!telegramId) {
+      console.error('No Telegram ID found in message context');
       await ctx.reply("Error: Could not identify Telegram user.")
       return
     }
@@ -148,9 +156,10 @@ bot.on("message:text", async (ctx) => {
       .from('telegram_users')
       .select('user_id')
       .eq('telegram_id', telegramId)
-      .single()
+      .maybeSingle()
 
     if (userError || !telegramUser) {
+      console.log('User not authenticated:', telegramId);
       await ctx.reply(
         "🔒 You need to authenticate first!\n" +
         "Please use the /start command to begin the authentication process."
@@ -273,6 +282,8 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  console.log('Received webhook request:', req.method, req.url);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders })
   }
