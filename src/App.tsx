@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
+import Settings from "./pages/Settings";
 import TaskEdit from "./components/TaskEdit";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -115,6 +116,7 @@ const App = () => {
           />
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/edit/:taskId" element={<TaskEditWrapper />} />
           </Routes>
           <Toaster />
