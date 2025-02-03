@@ -7,16 +7,64 @@ const hf = new HfInference(Deno.env.get("HUGGING_FACE_ACCESS_TOKEN"))
 
 // Command handlers
 bot.command("start", async (ctx) => {
-  await ctx.reply(
-    "👋 Welcome to your Task Manager bot!\n\n" +
-    "You can:\n" +
-    "1. Use commands like /tasks and /help\n" +
-    "2. Or just chat naturally - I'll understand what you need!\n\n" +
-    "Try saying things like:\n" +
-    "• Show me my tasks\n" +
-    "• Add a task to review the project by Friday\n" +
-    "• What's on my todo list?"
-  )
+  try {
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") || "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+    )
+
+    const telegramId = ctx.from?.id.toString()
+    if (!telegramId) {
+      await ctx.reply("Error: Could not identify Telegram user.")
+      return
+    }
+
+    // Check if user is already authenticated
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('telegram_users')
+      .select('user_id')
+      .eq('telegram_id', telegramId)
+      .single()
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error checking user:', fetchError)
+      await ctx.reply("An error occurred while checking your authentication status.")
+      return
+    }
+
+    if (existingUser) {
+      await ctx.reply(
+        "👋 Welcome back to your Task Manager bot!\n\n" +
+        "You can:\n" +
+        "1. Use commands like /tasks and /help\n" +
+        "2. Or just chat naturally - I'll understand what you need!\n\n" +
+        "Try saying things like:\n" +
+        "• Show me my tasks\n" +
+        "• Add a task to review the project by Friday\n" +
+        "• What's on my todo list?"
+      )
+      return
+    }
+
+    // Generate a unique verification code
+    const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+    
+    // Store verification code temporarily (you might want to use Redis or similar in production)
+    // For now, we'll store it in memory
+    await ctx.reply(
+      "🔐 To use this bot, you need to link it with your Task Manager account.\n\n" +
+      "Please follow these steps:\n\n" +
+      "1. Go to your Task Manager app\n" +
+      "2. Navigate to Settings > Integrations > Telegram\n" +
+      "3. Enter this verification code: " + verificationCode + "\n\n" +
+      "The code will expire in 10 minutes.\n" +
+      "Once verified, you can start using the bot!"
+    )
+  } catch (error) {
+    console.error('Error in start command:', error)
+    await ctx.reply("Sorry, there was an error processing your request. Please try again later.")
+  }
 })
 
 bot.command("help", async (ctx) => {
@@ -79,9 +127,36 @@ bot.command("tasks", async (ctx) => {
 bot.on("message:text", async (ctx) => {
   try {
     const text = ctx.message.text
+    const telegramId = ctx.from?.id.toString()
+
+    if (!telegramId) {
+      await ctx.reply("Error: Could not identify Telegram user.")
+      return
+    }
 
     // Skip if it's a command
     if (text.startsWith('/')) return
+
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") || "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+    )
+
+    // Check if user is authenticated
+    const { data: telegramUser, error: userError } = await supabase
+      .from('telegram_users')
+      .select('user_id')
+      .eq('telegram_id', telegramId)
+      .single()
+
+    if (userError || !telegramUser) {
+      await ctx.reply(
+        "🔒 You need to authenticate first!\n" +
+        "Please use the /start command to begin the authentication process."
+      )
+      return
+    }
 
     console.log('Processing message:', text)
 
@@ -109,12 +184,6 @@ bot.on("message:text", async (ctx) => {
       await ctx.reply("I'm not sure what you want to do. Try being more specific or use commands like /tasks or /add.")
       return
     }
-
-    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") || "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
-    )
 
     switch (intent) {
       case "create task": {
