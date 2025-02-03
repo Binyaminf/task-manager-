@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Calendar as CalendarIcon, List, Menu } from "lucide-react";
+import { LogOut, User, Calendar as CalendarIcon, List, Menu, Settings as SettingsIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Link } from "react-router-dom";
 
 interface HeaderProps {
   userEmail?: string;
@@ -90,6 +91,12 @@ export function Header({ userEmail, viewMode, onViewModeChange, onSignOut }: Hea
                     <Separator className="my-2" />
                   </>
                 )}
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="flex items-center">
+                    <SettingsIcon className="h-4 w-4 mr-2" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={onSignOut} className="text-red-600">
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out
