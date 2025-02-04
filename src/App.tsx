@@ -11,17 +11,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Task } from "@/types/task";
 import { useToast } from "@/hooks/use-toast";
 import { Session } from "@supabase/supabase-js";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AuthStateHandler } from "./components/auth/AuthStateHandler";
 
-// Configure the query client with optimal settings
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // Data stays fresh for 5 minutes
-      gcTime: 1000 * 60 * 30, // Cache garbage collection time
-      retry: 2, // Retry failed requests twice
-      refetchOnWindowFocus: false, // Don't refetch when window regains focus
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 30,
+      retry: 2,
+      refetchOnWindowFocus: false,
     },
   },
 });
@@ -102,6 +101,35 @@ const TaskEditWrapper = () => {
   return <TaskEdit tasks={tasks || []} onSave={handleSaveTask} />;
 };
 
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session);
+      setIsLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -117,16 +145,29 @@ const App = () => {
           <Routes>
             <Route 
               path="/" 
-              element={session ? <Index /> : <Navigate to="/login" />} 
+              element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              } 
             />
             <Route 
               path="/settings" 
-              element={session ? <Settings /> : <Navigate to="/login" />} 
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              } 
             />
             <Route 
               path="/edit/:taskId" 
-              element={session ? <TaskEditWrapper /> : <Navigate to="/login" />} 
+              element={
+                <ProtectedRoute>
+                  <TaskEditWrapper />
+                </ProtectedRoute>
+              } 
             />
+            <Route path="/login" element={!session ? <Navigate to="/" /> : null} />
           </Routes>
           <Toaster />
           <Sonner />
