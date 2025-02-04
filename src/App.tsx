@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import TaskEdit from "./components/TaskEdit";
@@ -12,7 +12,6 @@ import { Task } from "@/types/task";
 import { useToast } from "@/hooks/use-toast";
 import { Session } from "@supabase/supabase-js";
 import { useState, useEffect } from "react";
-import { AuthStateHandler } from "./components/auth/AuthStateHandler";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -102,29 +101,28 @@ const TaskEditWrapper = () => {
 };
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-      setIsLoading(false);
-    });
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          navigate('/login', { replace: true });
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Session check error:', error);
+        navigate('/login', { replace: true });
+      }
+    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsAuthenticated(!!session);
-      setIsLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    checkSession();
+  }, [navigate]);
 
   if (isLoading) {
     return <div>Loading...</div>;
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
@@ -132,16 +130,25 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <TooltipProvider>
-          <AuthStateHandler 
-            onSessionChange={setSession}
-            onError={setAuthError}
-          />
           <Routes>
             <Route 
               path="/" 
@@ -167,7 +174,10 @@ const App = () => {
                 </ProtectedRoute>
               } 
             />
-            <Route path="/login" element={!session ? <Navigate to="/" /> : null} />
+            <Route 
+              path="/login" 
+              element={session ? <Navigate to="/" replace /> : null} 
+            />
           </Routes>
           <Toaster />
           <Sonner />
