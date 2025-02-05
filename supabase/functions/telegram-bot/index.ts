@@ -153,17 +153,19 @@ serve(async (req) => {
       await ctx.reply(`Welcome! Your verification code is: ${verificationCode}\n\nPlease enter this code in the web application to link your Telegram account.`)
     })
 
-    // Handle messages
+    // Handle all other messages
     bot.on("message", async (ctx) => {
-      const messageText = ctx.message.text
+      console.log('Received message event')
+      const messageText = ctx.message?.text?.toLowerCase()
       const chatId = ctx.chat.id.toString()
 
       if (!messageText) {
+        console.log('No message text found')
         await ctx.reply("I can only process text messages.")
         return
       }
 
-      console.log('Received message:', messageText, 'from chat ID:', chatId)
+      console.log('Processing message:', messageText, 'from chat ID:', chatId)
 
       const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
       const supabase = createClient(
@@ -172,43 +174,56 @@ serve(async (req) => {
       )
 
       // Check if the user is verified
-      const { data: telegramUser } = await supabase
+      const { data: telegramUser, error: userError } = await supabase
         .from('telegram_users')
         .select('user_id')
         .eq('telegram_id', chatId)
-        .single()
+        .maybeSingle()
+
+      if (userError) {
+        console.error('Error checking user verification:', userError)
+        await ctx.reply("Sorry, there was an error processing your request. Please try again.")
+        return
+      }
 
       if (!telegramUser?.user_id) {
+        console.log('User not verified')
         await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
         return
       }
 
+      console.log('User is verified, user_id:', telegramUser.user_id)
+
       // Process the message based on content
-      if (messageText.toLowerCase().includes('list tasks')) {
-        const { data: tasks, error } = await supabase
+      if (messageText.includes('list tasks')) {
+        console.log('Fetching tasks for user')
+        const { data: tasks, error: tasksError } = await supabase
           .from('tasks')
           .select('summary, due_date')
           .eq('user_id', telegramUser.user_id)
           .order('due_date', { ascending: true })
           .limit(5)
 
-        if (error) {
-          console.error('Error fetching tasks:', error)
+        if (tasksError) {
+          console.error('Error fetching tasks:', tasksError)
           await ctx.reply("Sorry, there was an error fetching your tasks. Please try again.")
           return
         }
 
         if (!tasks?.length) {
+          console.log('No tasks found')
           await ctx.reply("You don't have any tasks yet.")
           return
         }
 
+        console.log('Found tasks:', tasks)
         const taskList = tasks
-          .map(task => `• ${task.summary} ${task.due_date ? `(Due: ${new Date(task.due_date).toLocaleDateString()})` : ''}`)
+          .map(task => `• ${task.summary}${task.due_date ? ` (Due: ${new Date(task.due_date).toLocaleDateString()})` : ''}`)
           .join('\n')
 
         await ctx.reply(`Here are your latest tasks:\n\n${taskList}`)
       } else {
+        console.log('Unknown command')
         await ctx.reply("I understand you want to interact with your tasks. You can try commands like 'list tasks' to see your upcoming tasks.")
       }
     })
