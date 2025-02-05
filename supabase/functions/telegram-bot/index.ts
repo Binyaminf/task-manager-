@@ -67,6 +67,28 @@ serve(async (req) => {
     }
 
     const bot = new Bot(Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '')
+
+    // Set up bot commands
+    bot.command("start", async (ctx) => {
+      const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      console.log('Generated verification code:', verificationCode);
+      
+      // Store the verification code temporarily (in a real implementation, you'd store this in the database)
+      await ctx.reply(`Welcome! Your verification code is: ${verificationCode}\n\nPlease enter this code in the web application to link your Telegram account.`);
+    });
+
+    // Handle regular messages
+    bot.on("message", async (ctx) => {
+      const messageText = ctx.message.text;
+      if (!messageText) {
+        await ctx.reply("I can only process text messages.");
+        return;
+      }
+
+      // Example response - you can expand this based on your needs
+      await ctx.reply("I received your message! In the future, I'll be able to help you manage your tasks.");
+    });
+
     const handler = webhookCallback(bot, "std/http")
     
     // Process the webhook update
