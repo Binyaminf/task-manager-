@@ -18,7 +18,7 @@ serve(async (req) => {
     const body = await req.json().catch(() => null)
     console.log('Received request body:', body)
 
-    if (!body || !body.action) {
+    if (!body) {
       return new Response(
         JSON.stringify({ error: 'Invalid request body' }),
         { 
@@ -28,10 +28,9 @@ serve(async (req) => {
       )
     }
 
-    const { action, code } = body
-
-    if (action === 'verify') {
-      if (!code) {
+    // Handle verification from web app
+    if (body.action === 'verify') {
+      if (!body.code) {
         return new Response(
           JSON.stringify({ error: 'Verification code is required' }),
           { 
@@ -41,7 +40,7 @@ serve(async (req) => {
         )
       }
 
-      console.log('Processing verification code:', code)
+      console.log('Processing verification code:', body.code)
 
       const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
       const supabase = createClient(
@@ -49,8 +48,28 @@ serve(async (req) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       )
 
-      // For now, just simulate verification success
-      // In a real implementation, you would verify the code against stored values
+      // Store the verification in telegram_users table
+      const { error } = await supabase
+        .from('telegram_users')
+        .insert([
+          { 
+            user_id: body.userId,
+            telegram_id: body.telegramId,
+            verification_code: body.code
+          }
+        ])
+
+      if (error) {
+        console.error('Error storing verification:', error)
+        return new Response(
+          JSON.stringify({ error: 'Failed to store verification' }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
       return new Response(
         JSON.stringify({ success: true }),
         { 
@@ -71,22 +90,88 @@ serve(async (req) => {
     // Set up bot commands
     bot.command("start", async (ctx) => {
       const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      console.log('Generated verification code:', verificationCode);
+      const chatId = ctx.chat.id.toString();
       
-      // Store the verification code temporarily (in a real implementation, you'd store this in the database)
+      console.log('Generated verification code:', verificationCode, 'for chat ID:', chatId);
+      
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      )
+
+      // Store the verification code temporarily
+      const { error } = await supabase
+        .from('telegram_users')
+        .insert([
+          { 
+            telegram_id: chatId,
+            verification_code: verificationCode,
+          }
+        ])
+
+      if (error) {
+        console.error('Error storing verification code:', error)
+        await ctx.reply("Sorry, there was an error generating your verification code. Please try again.");
+        return;
+      }
+      
       await ctx.reply(`Welcome! Your verification code is: ${verificationCode}\n\nPlease enter this code in the web application to link your Telegram account.`);
     });
 
     // Handle regular messages
     bot.on("message", async (ctx) => {
       const messageText = ctx.message.text;
+      const chatId = ctx.chat.id.toString();
+
       if (!messageText) {
         await ctx.reply("I can only process text messages.");
         return;
       }
 
-      // Example response - you can expand this based on your needs
-      await ctx.reply("I received your message! In the future, I'll be able to help you manage your tasks.");
+      console.log('Received message:', messageText, 'from chat ID:', chatId);
+
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      )
+
+      // Check if the user is verified
+      const { data: telegramUser } = await supabase
+        .from('telegram_users')
+        .select('user_id')
+        .eq('telegram_id', chatId)
+        .single()
+
+      if (!telegramUser?.user_id) {
+        await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.");
+        return;
+      }
+
+      // Process the message based on content
+      if (messageText.toLowerCase().includes('list tasks')) {
+        // Fetch user's tasks
+        const { data: tasks } = await supabase
+          .from('tasks')
+          .select('summary, due_date')
+          .eq('user_id', telegramUser.user_id)
+          .order('due_date', { ascending: true })
+          .limit(5)
+
+        if (!tasks?.length) {
+          await ctx.reply("You don't have any tasks yet.");
+          return;
+        }
+
+        const taskList = tasks
+          .map(task => `• ${task.summary} ${task.due_date ? `(Due: ${new Date(task.due_date).toLocaleDateString()})` : ''}`)
+          .join('\n');
+
+        await ctx.reply(`Here are your latest tasks:\n\n${taskList}`);
+      } else {
+        await ctx.reply("I understand you want to interact with your tasks. You can try commands like 'list tasks' to see your upcoming tasks.");
+      }
     });
 
     const handler = webhookCallback(bot, "std/http")
