@@ -16,6 +16,30 @@ export function TelegramSettings() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  const setupWebhook = async () => {
+    const webhookUrl = `https://acmmuhybijjkycfoxuzc.supabase.co/functions/v1/telegram-bot`;
+    
+    try {
+      const { error } = await supabase.functions.invoke('telegram-bot', {
+        body: { 
+          action: 'setup-webhook',
+          webhookUrl
+        }
+      });
+
+      if (error) throw error;
+
+      console.log('Webhook setup successful');
+    } catch (error) {
+      console.error('Error setting up webhook:', error);
+    }
+  };
+
+  // Set up webhook when component mounts
+  useState(() => {
+    setupWebhook();
+  }, []);
+
   const handleVerification = async (e: React.FormEvent) => {
     e.preventDefault();
     

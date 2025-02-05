@@ -8,6 +8,7 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders })
   }
@@ -15,6 +16,34 @@ serve(async (req) => {
   try {
     const body = await req.json()
     console.log('Received request body:', body)
+
+    const bot = new Bot(Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '')
+    
+    // Set up webhook if it's a setup request
+    if (body.action === 'setup-webhook') {
+      const webhookUrl = body.webhookUrl
+      console.log('Setting up webhook URL:', webhookUrl)
+      
+      try {
+        await bot.api.setWebhook(webhookUrl)
+        return new Response(
+          JSON.stringify({ success: true, message: 'Webhook set successfully' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200 
+          }
+        )
+      } catch (error) {
+        console.error('Error setting webhook:', error)
+        return new Response(
+          JSON.stringify({ error: 'Failed to set webhook', details: error.message }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        )
+      }
+    }
 
     // Handle verification from web app
     if (body.action === 'verify') {
@@ -33,6 +62,8 @@ serve(async (req) => {
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       )
+
+      console.log('Looking for verification code:', body.code.toUpperCase())
 
       // Find the telegram user with this verification code
       const { data: telegramUser, error: findError } = await supabase
@@ -72,6 +103,13 @@ serve(async (req) => {
         )
       }
 
+      // Send confirmation message to the user
+      try {
+        await bot.api.sendMessage(telegramUser.telegram_id, 'Your account has been successfully verified! You can now use commands like "list tasks" to interact with your tasks.')
+      } catch (error) {
+        console.error('Error sending confirmation message:', error)
+      }
+
       return new Response(
         JSON.stringify({ success: true }),
         { 
@@ -81,14 +119,12 @@ serve(async (req) => {
       )
     }
 
-    // Handle Telegram webhook updates
-    const bot = new Bot(Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '')
-
+    // Set up bot commands
     bot.command("start", async (ctx) => {
+      console.log('Received start command from chat ID:', ctx.chat.id)
+      
       const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase()
       const chatId = ctx.chat.id.toString()
-      
-      console.log('Generated verification code:', verificationCode, 'for chat ID:', chatId)
       
       const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
       const supabase = createClient(
@@ -96,15 +132,17 @@ serve(async (req) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       )
 
-      // Store the verification code
+      // Store or update the verification code
       const { error } = await supabase
         .from('telegram_users')
-        .insert([
+        .upsert([
           { 
             telegram_id: chatId,
             verification_code: verificationCode
           }
-        ])
+        ], {
+          onConflict: 'telegram_id'
+        })
 
       if (error) {
         console.error('Error storing verification code:', error)
@@ -115,6 +153,7 @@ serve(async (req) => {
       await ctx.reply(`Welcome! Your verification code is: ${verificationCode}\n\nPlease enter this code in the web application to link your Telegram account.`)
     })
 
+    // Handle messages
     bot.on("message", async (ctx) => {
       const messageText = ctx.message.text
       const chatId = ctx.chat.id.toString()
@@ -146,12 +185,18 @@ serve(async (req) => {
 
       // Process the message based on content
       if (messageText.toLowerCase().includes('list tasks')) {
-        const { data: tasks } = await supabase
+        const { data: tasks, error } = await supabase
           .from('tasks')
           .select('summary, due_date')
           .eq('user_id', telegramUser.user_id)
           .order('due_date', { ascending: true })
           .limit(5)
+
+        if (error) {
+          console.error('Error fetching tasks:', error)
+          await ctx.reply("Sorry, there was an error fetching your tasks. Please try again.")
+          return
+        }
 
         if (!tasks?.length) {
           await ctx.reply("You don't have any tasks yet.")
@@ -168,9 +213,11 @@ serve(async (req) => {
       }
     })
 
+    // Set up webhook handler
     const handler = webhookCallback(bot, "std/http")
     const response = await handler(req)
     
+    // Add CORS headers to the response
     const newHeaders = new Headers(response.headers)
     Object.entries(corsHeaders).forEach(([key, value]) => {
       newHeaders.set(key, value)
