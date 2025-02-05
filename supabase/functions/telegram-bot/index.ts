@@ -8,25 +8,13 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    // Parse request body
-    const body = await req.json().catch(() => null)
+    const body = await req.json()
     console.log('Received request body:', body)
-
-    if (!body) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid request body' }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
-    }
 
     // Handle verification from web app
     if (body.action === 'verify') {
@@ -40,29 +28,43 @@ serve(async (req) => {
         )
       }
 
-      console.log('Processing verification code:', body.code)
-
       const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
       const supabase = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       )
 
-      // Store the verification in telegram_users table
-      const { error } = await supabase
+      // Find the telegram user with this verification code
+      const { data: telegramUser, error: findError } = await supabase
         .from('telegram_users')
-        .insert([
-          { 
-            user_id: body.userId,
-            telegram_id: body.telegramId,
-            verification_code: body.code
-          }
-        ])
+        .select('*')
+        .eq('verification_code', body.code.toUpperCase())
+        .single()
 
-      if (error) {
-        console.error('Error storing verification:', error)
+      if (findError || !telegramUser) {
+        console.error('Error finding verification code:', findError)
         return new Response(
-          JSON.stringify({ error: 'Failed to store verification' }),
+          JSON.stringify({ error: 'Invalid verification code' }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
+      // Update the telegram user with the user_id and clear the verification code
+      const { error: updateError } = await supabase
+        .from('telegram_users')
+        .update({ 
+          user_id: body.userId,
+          verification_code: null 
+        })
+        .eq('id', telegramUser.id)
+
+      if (updateError) {
+        console.error('Error updating telegram user:', updateError)
+        return new Response(
+          JSON.stringify({ error: 'Failed to verify telegram user' }),
           { 
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -80,19 +82,13 @@ serve(async (req) => {
     }
 
     // Handle Telegram webhook updates
-    if (!Deno.env.get('TELEGRAM_BOT_TOKEN')) {
-      console.error('TELEGRAM_BOT_TOKEN is not set')
-      throw new Error('Telegram bot token not configured')
-    }
-
     const bot = new Bot(Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '')
 
-    // Set up bot commands
     bot.command("start", async (ctx) => {
-      const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const chatId = ctx.chat.id.toString();
+      const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+      const chatId = ctx.chat.id.toString()
       
-      console.log('Generated verification code:', verificationCode, 'for chat ID:', chatId);
+      console.log('Generated verification code:', verificationCode, 'for chat ID:', chatId)
       
       const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
       const supabase = createClient(
@@ -100,36 +96,35 @@ serve(async (req) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       )
 
-      // Store the verification code temporarily
+      // Store the verification code
       const { error } = await supabase
         .from('telegram_users')
         .insert([
           { 
             telegram_id: chatId,
-            verification_code: verificationCode,
+            verification_code: verificationCode
           }
         ])
 
       if (error) {
         console.error('Error storing verification code:', error)
-        await ctx.reply("Sorry, there was an error generating your verification code. Please try again.");
-        return;
+        await ctx.reply("Sorry, there was an error generating your verification code. Please try again.")
+        return
       }
       
-      await ctx.reply(`Welcome! Your verification code is: ${verificationCode}\n\nPlease enter this code in the web application to link your Telegram account.`);
-    });
+      await ctx.reply(`Welcome! Your verification code is: ${verificationCode}\n\nPlease enter this code in the web application to link your Telegram account.`)
+    })
 
-    // Handle regular messages
     bot.on("message", async (ctx) => {
-      const messageText = ctx.message.text;
-      const chatId = ctx.chat.id.toString();
+      const messageText = ctx.message.text
+      const chatId = ctx.chat.id.toString()
 
       if (!messageText) {
-        await ctx.reply("I can only process text messages.");
-        return;
+        await ctx.reply("I can only process text messages.")
+        return
       }
 
-      console.log('Received message:', messageText, 'from chat ID:', chatId);
+      console.log('Received message:', messageText, 'from chat ID:', chatId)
 
       const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
       const supabase = createClient(
@@ -145,13 +140,12 @@ serve(async (req) => {
         .single()
 
       if (!telegramUser?.user_id) {
-        await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.");
-        return;
+        await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
+        return
       }
 
       // Process the message based on content
       if (messageText.toLowerCase().includes('list tasks')) {
-        // Fetch user's tasks
         const { data: tasks } = await supabase
           .from('tasks')
           .select('summary, due_date')
@@ -160,26 +154,23 @@ serve(async (req) => {
           .limit(5)
 
         if (!tasks?.length) {
-          await ctx.reply("You don't have any tasks yet.");
-          return;
+          await ctx.reply("You don't have any tasks yet.")
+          return
         }
 
         const taskList = tasks
           .map(task => `• ${task.summary} ${task.due_date ? `(Due: ${new Date(task.due_date).toLocaleDateString()})` : ''}`)
-          .join('\n');
+          .join('\n')
 
-        await ctx.reply(`Here are your latest tasks:\n\n${taskList}`);
+        await ctx.reply(`Here are your latest tasks:\n\n${taskList}`)
       } else {
-        await ctx.reply("I understand you want to interact with your tasks. You can try commands like 'list tasks' to see your upcoming tasks.");
+        await ctx.reply("I understand you want to interact with your tasks. You can try commands like 'list tasks' to see your upcoming tasks.")
       }
-    });
+    })
 
     const handler = webhookCallback(bot, "std/http")
-    
-    // Process the webhook update
     const response = await handler(req)
     
-    // Add CORS headers to the webhook response
     const newHeaders = new Headers(response.headers)
     Object.entries(corsHeaders).forEach(([key, value]) => {
       newHeaders.set(key, value)

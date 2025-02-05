@@ -17,7 +17,7 @@ export function TelegramSettings() {
   const { toast } = useToast();
 
   const handleVerification = async (e: React.FormEvent) => {
-    e.preventDefault(); // Prevent form submission from refreshing the page
+    e.preventDefault();
     
     if (!verificationCode) {
       toast({
@@ -28,12 +28,23 @@ export function TelegramSettings() {
       return;
     }
 
+    const session = await supabase.auth.getSession();
+    if (!session.data.session?.user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to verify your Telegram account",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { error } = await supabase.functions.invoke('telegram-bot', {
         body: { 
           action: 'verify',
-          code: verificationCode.toUpperCase()
+          code: verificationCode.toUpperCase(),
+          userId: session.data.session.user.id
         }
       });
 
@@ -67,7 +78,7 @@ export function TelegramSettings() {
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            1. Start a chat with our bot: @YourBotUsername
+            1. Start a chat with our bot: @TaskManagerAssistantBot
           </p>
           <p className="text-sm text-muted-foreground">
             2. Send the /start command to receive your verification code
