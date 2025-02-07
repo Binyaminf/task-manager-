@@ -158,6 +158,7 @@ serve(async (req) => {
     bot.on("message", async (ctx) => {
       try {
         console.log('Received message event')
+        console.log('Full context:', ctx)
         
         const rawMessageText = ctx.message?.text
         console.log('Raw message text:', rawMessageText)
@@ -181,11 +182,11 @@ serve(async (req) => {
         // Check if the user is verified
         const { data: telegramUser, error: userError } = await supabase
           .from('telegram_users')
-          .select('user_id')
+          .select('*')
           .eq('telegram_id', chatId)
           .maybeSingle()
 
-        console.log('Telegram user data:', telegramUser, 'Error:', userError)
+        console.log('Telegram user query result:', { data: telegramUser, error: userError })
 
         if (userError) {
           console.error('Error checking user verification:', userError)
@@ -195,26 +196,26 @@ serve(async (req) => {
 
         // If user is not verified, provide guidance
         if (!telegramUser?.user_id) {
-          console.log('User not verified')
+          console.log('User not verified, telegramUser:', telegramUser)
           if (!messageText.startsWith('/start')) {
             await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
           }
           return
         }
 
-        console.log('User is verified, user_id:', telegramUser.user_id)
+        console.log('User is verified, processing command:', messageText)
 
         // Process the message based on content
         if (messageText.includes('list tasks')) {
-          console.log('Fetching tasks for user')
+          console.log('Fetching tasks for user:', telegramUser.user_id)
           const { data: tasks, error: tasksError } = await supabase
             .from('tasks')
-            .select('summary, due_date')
+            .select('*')
             .eq('user_id', telegramUser.user_id)
             .order('due_date', { ascending: true })
             .limit(5)
 
-          console.log('Tasks query result:', tasks, 'Error:', tasksError)
+          console.log('Tasks query result:', { data: tasks, error: tasksError })
 
           if (tasksError) {
             console.error('Error fetching tasks:', tasksError)
@@ -235,8 +236,12 @@ serve(async (req) => {
 
           await ctx.reply(`Here are your latest tasks:\n\n${taskList}`)
         } else {
-          console.log('Unknown command')
-          await ctx.reply("I understand you want to interact with your tasks. You can try commands like 'list tasks' to see your upcoming tasks.")
+          console.log('Sending help message for unknown command')
+          await ctx.reply(
+            "Hello! Here are the commands I understand:\n\n" +
+            "• 'list tasks' - Show your upcoming tasks\n\n" +
+            "If you need help, just send 'help' and I'll show you this message again."
+          )
         }
       } catch (error) {
         console.error('Error in message handler:', error)
