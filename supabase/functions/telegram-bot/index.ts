@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { Bot, webhookCallback } from "https://deno.land/x/grammy@v1.21.1/mod.ts"
 
@@ -155,76 +156,91 @@ serve(async (req) => {
 
     // Handle all other messages
     bot.on("message", async (ctx) => {
-      console.log('Received message event')
-      const messageText = ctx.message?.text?.toLowerCase()
-      const chatId = ctx.chat.id.toString()
-
-      if (!messageText) {
-        console.log('No message text found')
-        await ctx.reply("I can only process text messages.")
-        return
-      }
-
-      console.log('Processing message:', messageText, 'from chat ID:', chatId)
-
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      )
-
-      // Check if the user is verified
-      const { data: telegramUser, error: userError } = await supabase
-        .from('telegram_users')
-        .select('user_id')
-        .eq('telegram_id', chatId)
-        .maybeSingle()
-
-      if (userError) {
-        console.error('Error checking user verification:', userError)
-        await ctx.reply("Sorry, there was an error processing your request. Please try again.")
-        return
-      }
-
-      if (!telegramUser?.user_id) {
-        console.log('User not verified')
-        await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
-        return
-      }
-
-      console.log('User is verified, user_id:', telegramUser.user_id)
-
-      // Process the message based on content
-      if (messageText.includes('list tasks')) {
-        console.log('Fetching tasks for user')
-        const { data: tasks, error: tasksError } = await supabase
-          .from('tasks')
-          .select('summary, due_date')
-          .eq('user_id', telegramUser.user_id)
-          .order('due_date', { ascending: true })
-          .limit(5)
-
-        if (tasksError) {
-          console.error('Error fetching tasks:', tasksError)
-          await ctx.reply("Sorry, there was an error fetching your tasks. Please try again.")
+      try {
+        console.log('Received message event')
+        
+        const rawMessageText = ctx.message?.text
+        console.log('Raw message text:', rawMessageText)
+        
+        if (!rawMessageText) {
+          console.log('No message text found')
+          await ctx.reply("I can only process text messages.")
           return
         }
 
-        if (!tasks?.length) {
-          console.log('No tasks found')
-          await ctx.reply("You don't have any tasks yet.")
+        const messageText = rawMessageText.toLowerCase()
+        const chatId = ctx.chat.id.toString()
+        console.log('Processing message:', messageText, 'from chat ID:', chatId)
+
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        )
+
+        // Check if the user is verified
+        const { data: telegramUser, error: userError } = await supabase
+          .from('telegram_users')
+          .select('user_id')
+          .eq('telegram_id', chatId)
+          .maybeSingle()
+
+        console.log('Telegram user data:', telegramUser, 'Error:', userError)
+
+        if (userError) {
+          console.error('Error checking user verification:', userError)
+          await ctx.reply("Sorry, there was an error processing your request. Please try again.")
           return
         }
 
-        console.log('Found tasks:', tasks)
-        const taskList = tasks
-          .map(task => `• ${task.summary}${task.due_date ? ` (Due: ${new Date(task.due_date).toLocaleDateString()})` : ''}`)
-          .join('\n')
+        // If user is not verified, provide guidance
+        if (!telegramUser?.user_id) {
+          console.log('User not verified')
+          if (!messageText.startsWith('/start')) {
+            await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
+          }
+          return
+        }
 
-        await ctx.reply(`Here are your latest tasks:\n\n${taskList}`)
-      } else {
-        console.log('Unknown command')
-        await ctx.reply("I understand you want to interact with your tasks. You can try commands like 'list tasks' to see your upcoming tasks.")
+        console.log('User is verified, user_id:', telegramUser.user_id)
+
+        // Process the message based on content
+        if (messageText.includes('list tasks')) {
+          console.log('Fetching tasks for user')
+          const { data: tasks, error: tasksError } = await supabase
+            .from('tasks')
+            .select('summary, due_date')
+            .eq('user_id', telegramUser.user_id)
+            .order('due_date', { ascending: true })
+            .limit(5)
+
+          console.log('Tasks query result:', tasks, 'Error:', tasksError)
+
+          if (tasksError) {
+            console.error('Error fetching tasks:', tasksError)
+            await ctx.reply("Sorry, there was an error fetching your tasks. Please try again.")
+            return
+          }
+
+          if (!tasks?.length) {
+            console.log('No tasks found')
+            await ctx.reply("You don't have any tasks yet.")
+            return
+          }
+
+          console.log('Found tasks:', tasks)
+          const taskList = tasks
+            .map(task => `• ${task.summary}${task.due_date ? ` (Due: ${new Date(task.due_date).toLocaleDateString()})` : ''}`)
+            .join('\n')
+
+          await ctx.reply(`Here are your latest tasks:\n\n${taskList}`)
+        } else {
+          console.log('Unknown command')
+          await ctx.reply("I understand you want to interact with your tasks. You can try commands like 'list tasks' to see your upcoming tasks.")
+        }
+      } catch (error) {
+        console.error('Error in message handler:', error)
+        await ctx.reply("Sorry, there was an error processing your message. Please try again.")
       }
     })
 
