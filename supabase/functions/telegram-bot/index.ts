@@ -16,7 +16,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json()
-    console.log('Received request body:', body)
+    console.log('Received webhook request:', JSON.stringify(body, null, 2))
 
     // Initialize bot with error handling
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
@@ -27,32 +27,40 @@ serve(async (req) => {
     
     const bot = new Bot(botToken)
     console.log('Bot initialized successfully')
-    
-    // Set up webhook if it's a setup request
-    if (body.action === 'setup-webhook') {
-      const webhookUrl = body.webhookUrl
-      console.log('Setting up webhook URL:', webhookUrl)
+
+    // Set command handlers first, before handling the webhook
+    bot.command("start", async (ctx) => {
+      console.log('Start command received from:', ctx.chat.id)
       
-      try {
-        await bot.api.setWebhook(webhookUrl)
-        return new Response(
-          JSON.stringify({ success: true, message: 'Webhook set successfully' }),
+      const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+      const chatId = ctx.chat.id.toString()
+      
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      )
+
+      // Store or update the verification code
+      const { error } = await supabase
+        .from('telegram_users')
+        .upsert([
           { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200 
+            telegram_id: chatId,
+            verification_code: verificationCode
           }
-        )
-      } catch (error) {
-        console.error('Error setting webhook:', error)
-        return new Response(
-          JSON.stringify({ error: 'Failed to set webhook', details: error.message }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 500 
-          }
-        )
+        ], {
+          onConflict: 'telegram_id'
+        })
+
+      if (error) {
+        console.error('Error storing verification code:', error)
+        await ctx.reply("Sorry, there was an error generating your verification code. Please try again.")
+        return
       }
-    }
+      
+      await ctx.reply(`Welcome! Your verification code is: ${verificationCode}\n\nPlease enter this code in the web application to link your Telegram account.`)
+    })
 
     // Handle verification from web app
     if (body.action === 'verify') {
@@ -112,7 +120,6 @@ serve(async (req) => {
         )
       }
 
-      // Send confirmation message to the user
       try {
         await bot.api.sendMessage(telegramUser.telegram_id, 'Your account has been successfully verified! You can now use commands like "list tasks" to interact with your tasks.')
       } catch (error) {
@@ -128,39 +135,31 @@ serve(async (req) => {
       )
     }
 
-    // Set up bot commands
-    bot.command("start", async (ctx) => {
-      console.log('Received start command from chat ID:', ctx.chat.id)
+    // Set up webhook if it's a setup request
+    if (body.action === 'setup-webhook') {
+      const webhookUrl = body.webhookUrl
+      console.log('Setting up webhook URL:', webhookUrl)
       
-      const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase()
-      const chatId = ctx.chat.id.toString()
-      
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      )
-
-      // Store or update the verification code
-      const { error } = await supabase
-        .from('telegram_users')
-        .upsert([
+      try {
+        await bot.api.setWebhook(webhookUrl)
+        return new Response(
+          JSON.stringify({ success: true, message: 'Webhook set successfully' }),
           { 
-            telegram_id: chatId,
-            verification_code: verificationCode
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200 
           }
-        ], {
-          onConflict: 'telegram_id'
-        })
-
-      if (error) {
-        console.error('Error storing verification code:', error)
-        await ctx.reply("Sorry, there was an error generating your verification code. Please try again.")
-        return
+        )
+      } catch (error) {
+        console.error('Error setting webhook:', error)
+        return new Response(
+          JSON.stringify({ error: 'Failed to set webhook', details: error.message }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        )
       }
-      
-      await ctx.reply(`Welcome! Your verification code is: ${verificationCode}\n\nPlease enter this code in the web application to link your Telegram account.`)
-    })
+    }
 
     // Handle all other messages
     bot.on("message", async (ctx) => {
@@ -200,6 +199,7 @@ serve(async (req) => {
           .from('telegram_users')
           .select('*')
           .eq('telegram_id', chatId)
+          .eq('verification_code', null)  // Only select verified users
           .maybeSingle()
 
         console.log('Telegram user query result:', { data: telegramUser, error: userError })
@@ -213,9 +213,7 @@ serve(async (req) => {
         // If user is not verified, provide guidance
         if (!telegramUser?.user_id) {
           console.log('User not verified, telegramUser:', telegramUser)
-          if (!messageText.startsWith('/start')) {
-            await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
-          }
+          await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
           return
         }
 
@@ -290,20 +288,28 @@ serve(async (req) => {
       }
     })
 
-    // Set up webhook handler
-    const handler = webhookCallback(bot, "std/http")
-    const response = await handler(req)
-    
-    // Add CORS headers to the response
-    const newHeaders = new Headers(response.headers)
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-      newHeaders.set(key, value)
-    })
-    
-    return new Response(response.body, {
-      status: response.status,
-      headers: newHeaders,
-    })
+    // Set up webhook handler with error logging
+    try {
+      const handler = webhookCallback(bot, "std/http")
+      console.log('Webhook handler set up successfully')
+      
+      const response = await handler(req)
+      console.log('Webhook handler processed request')
+      
+      // Add CORS headers to the response
+      const newHeaders = new Headers(response.headers)
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        newHeaders.set(key, value)
+      })
+      
+      return new Response(response.body, {
+        status: response.status,
+        headers: newHeaders,
+      })
+    } catch (error) {
+      console.error('Error in webhook handler:', error)
+      throw error // Let the outer try-catch handle this
+    }
 
   } catch (error) {
     console.error('Error processing request:', error)
