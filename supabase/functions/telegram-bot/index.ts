@@ -18,7 +18,15 @@ serve(async (req) => {
     const body = await req.json()
     console.log('Received request body:', body)
 
-    const bot = new Bot(Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '')
+    // Initialize bot with error handling
+    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
+    if (!botToken) {
+      console.error('TELEGRAM_BOT_TOKEN not found')
+      throw new Error('Bot token not configured')
+    }
+    
+    const bot = new Bot(botToken)
+    console.log('Bot initialized successfully')
     
     // Set up webhook if it's a setup request
     if (body.action === 'setup-webhook') {
@@ -157,8 +165,9 @@ serve(async (req) => {
     // Handle all other messages
     bot.on("message", async (ctx) => {
       try {
-        console.log('Received message event')
-        console.log('Full context:', ctx)
+        console.log('Message handler triggered')
+        console.log('Update type:', ctx.update.message?.text ? 'text' : 'other')
+        console.log('Full context:', JSON.stringify(ctx.update, null, 2))
         
         const rawMessageText = ctx.message?.text
         console.log('Raw message text:', rawMessageText)
@@ -173,11 +182,18 @@ serve(async (req) => {
         const chatId = ctx.chat.id.toString()
         console.log('Processing message:', messageText, 'from chat ID:', chatId)
 
+        // Initialize Supabase client
         const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
-        const supabase = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        )
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        
+        if (!supabaseUrl || !supabaseKey) {
+          console.error('Supabase credentials not found')
+          throw new Error('Database configuration missing')
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseKey)
+        console.log('Supabase client initialized')
 
         // Check if the user is verified
         const { data: telegramUser, error: userError } = await supabase
@@ -208,6 +224,19 @@ serve(async (req) => {
         // Process the message based on content
         if (messageText.includes('list tasks')) {
           console.log('Fetching tasks for user:', telegramUser.user_id)
+          
+          // Verify tasks table access
+          const { data: tasksCheck, error: tasksCheckError } = await supabase
+            .from('tasks')
+            .select('count')
+            .limit(1)
+          
+          if (tasksCheckError) {
+            console.error('Error accessing tasks table:', tasksCheckError)
+            await ctx.reply("Sorry, there was an error accessing the tasks database. Please try again later.")
+            return
+          }
+          
           const { data: tasks, error: tasksError } = await supabase
             .from('tasks')
             .select('*')
@@ -234,7 +263,19 @@ serve(async (req) => {
             .map(task => `• ${task.summary}${task.due_date ? ` (Due: ${new Date(task.due_date).toLocaleDateString()})` : ''}`)
             .join('\n')
 
-          await ctx.reply(`Here are your latest tasks:\n\n${taskList}`)
+          try {
+            await ctx.reply(`Here are your latest tasks:\n\n${taskList}`)
+            console.log('Successfully sent task list to user')
+          } catch (replyError) {
+            console.error('Error sending task list:', replyError)
+            throw replyError
+          }
+        } else if (messageText === 'help') {
+          await ctx.reply(
+            "Here are the commands I understand:\n\n" +
+            "• 'list tasks' - Show your upcoming tasks\n\n" +
+            "If you need help, just send 'help' and I'll show you this message again."
+          )
         } else {
           console.log('Sending help message for unknown command')
           await ctx.reply(
