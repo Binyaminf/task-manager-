@@ -32,7 +32,7 @@ serve(async (req) => {
     const bot = new Bot(botToken)
     console.log('Bot initialized successfully')
 
-    // Set command handlers first, before handling the webhook
+    // Set command handlers BEFORE handling the webhook
     bot.command("start", async (ctx) => {
       console.log('Start command received from:', ctx.chat.id)
       console.log('Full start command context:', JSON.stringify(ctx.update, null, 2))
@@ -60,7 +60,7 @@ serve(async (req) => {
           .upsert([
             { 
               telegram_id: chatId,
-              verification_code: verificationCode,
+              verification_code: verificationCode
             }
           ])
 
@@ -82,11 +82,58 @@ serve(async (req) => {
     bot.command("help", async (ctx) => {
       await ctx.reply(
         "Here are the commands I understand:\n\n" +
-        "• 'list tasks' - Show your upcoming tasks\n" +
+        "• 'list tasks' or /list - Show your upcoming tasks\n" +
         "• /start - Get a new verification code\n" +
         "• /help - Show this help message\n\n" +
         "If you need help, just send 'help' and I'll show you this message again."
       )
+    })
+
+    // Handle list command explicitly
+    bot.command("list", async (ctx) => {
+      const chatId = ctx.chat.id.toString()
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      )
+
+      // Check if the user is verified
+      const { data: telegramUser, error: userError } = await supabase
+        .from('telegram_users')
+        .select('*')
+        .eq('telegram_id', chatId)
+        .maybeSingle()
+
+      if (userError || !telegramUser?.user_id) {
+        await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
+        return
+      }
+
+      // Fetch tasks
+      const { data: tasks, error: tasksError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', telegramUser.user_id)
+        .order('due_date', { ascending: true })
+        .limit(5)
+
+      if (tasksError) {
+        console.error('Error fetching tasks:', tasksError)
+        await ctx.reply("Sorry, there was an error fetching your tasks. Please try again.")
+        return
+      }
+
+      if (!tasks?.length) {
+        await ctx.reply("You don't have any tasks yet.")
+        return
+      }
+
+      const taskList = tasks
+        .map(task => `• ${task.summary}${task.due_date ? ` (Due: ${new Date(task.due_date).toLocaleDateString()})` : ''}`)
+        .join('\n')
+
+      await ctx.reply(`Here are your latest tasks:\n\n${taskList}`)
     })
 
     // Handle all other messages
@@ -147,7 +194,7 @@ serve(async (req) => {
         console.log('User is verified with user_id:', telegramUser.user_id)
 
         // Process the message based on content
-        if (messageText === 'list tasks' || messageText === '/list') {
+        if (messageText === 'list tasks') {
           console.log('Fetching tasks for user:', telegramUser.user_id)
           
           const { data: tasks, error: tasksError } = await supabase
@@ -181,16 +228,19 @@ serve(async (req) => {
         } else if (messageText === 'help') {
           await ctx.reply(
             "Here are the commands I understand:\n\n" +
-            "• 'list tasks' or /list - Show your upcoming tasks\n" +
+            "• 'list tasks' - Show your upcoming tasks\n" +
             "• /start - Get a new verification code\n" +
             "• /help - Show this help message\n\n" +
             "If you need help, just send 'help' and I'll show you this message again."
           )
+        } else if (messageText.startsWith('add task:')) {
+          // TODO: Implement task creation
+          await ctx.reply("Task creation is not implemented yet. Please use the web interface to create tasks.")
         } else {
           console.log('Sending help message for unknown command')
           await ctx.reply(
             "I don't understand that command. Here are the commands I understand:\n\n" +
-            "• 'list tasks' or /list - Show your upcoming tasks\n" +
+            "• 'list tasks' - Show your upcoming tasks\n" +
             "• /start - Get a new verification code\n" +
             "• /help - Show this help message\n\n" +
             "If you need help, just send 'help' and I'll show you this message again."
@@ -305,6 +355,12 @@ serve(async (req) => {
 
     // Set up webhook handler with error logging
     try {
+      // Initialize bot with webhookReply disabled
+      bot.api.config.use((prev, method, payload) => {
+        // Force webhookReply to false for all API calls
+        return prev(method, { ...payload, webhook_reply: false })
+      })
+
       const handler = webhookCallback(bot, "std/http")
       console.log('Webhook handler set up successfully')
       
