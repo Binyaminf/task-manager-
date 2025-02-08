@@ -32,7 +32,108 @@ serve(async (req) => {
     const bot = new Bot(botToken)
     console.log('Bot initialized successfully')
 
-    // Set command handlers BEFORE handling the webhook
+    // Handle webhook setup request
+    if (body.action === 'setup-webhook') {
+      const webhookUrl = body.webhookUrl
+      console.log('Setting up webhook URL:', webhookUrl)
+      
+      try {
+        await bot.api.setWebhook(webhookUrl)
+        return new Response(
+          JSON.stringify({ success: true, message: 'Webhook set successfully' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200 
+          }
+        )
+      } catch (error) {
+        console.error('Error setting webhook:', error)
+        return new Response(
+          JSON.stringify({ error: 'Failed to set webhook', details: error.message }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        )
+      }
+    }
+
+    // Handle verification from web app
+    if (body.action === 'verify') {
+      console.log('Processing verification request:', body)
+      
+      if (!body.code || !body.userId) {
+        return new Response(
+          JSON.stringify({ error: 'Verification code and user ID are required' }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      )
+
+      console.log('Looking for verification code:', body.code.toUpperCase())
+
+      // Find the telegram user with this verification code
+      const { data: telegramUser, error: findError } = await supabase
+        .from('telegram_users')
+        .select('*')
+        .eq('verification_code', body.code.toUpperCase())
+        .maybeSingle()
+
+      if (findError || !telegramUser) {
+        console.error('Error finding verification code:', findError)
+        return new Response(
+          JSON.stringify({ error: 'Invalid verification code' }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
+      // Update the telegram user with the user_id and clear the verification code
+      const { error: updateError } = await supabase
+        .from('telegram_users')
+        .update({ 
+          user_id: body.userId,
+          verification_code: null 
+        })
+        .eq('id', telegramUser.id)
+
+      if (updateError) {
+        console.error('Error updating telegram user:', updateError)
+        return new Response(
+          JSON.stringify({ error: 'Failed to verify telegram user' }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
+      try {
+        await bot.api.sendMessage(telegramUser.telegram_id, 'Your account has been successfully verified! You can now use commands like "list tasks" to interact with your tasks.')
+      } catch (error) {
+        console.error('Error sending confirmation message:', error)
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Set up command handlers BEFORE handling the webhook
     bot.command("start", async (ctx) => {
       console.log('Start command received from:', ctx.chat.id)
       console.log('Full start command context:', JSON.stringify(ctx.update, null, 2))
@@ -80,6 +181,7 @@ serve(async (req) => {
 
     // Handle /help command explicitly
     bot.command("help", async (ctx) => {
+      console.log('Help command received from:', ctx.chat.id)
       await ctx.reply(
         "Here are the commands I understand:\n\n" +
         "• 'list tasks' or /list - Show your upcoming tasks\n" +
@@ -91,6 +193,7 @@ serve(async (req) => {
 
     // Handle list command explicitly
     bot.command("list", async (ctx) => {
+      console.log('List command received from:', ctx.chat.id)
       const chatId = ctx.chat.id.toString()
       const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
       const supabase = createClient(
@@ -251,107 +354,6 @@ serve(async (req) => {
         await ctx.reply("Sorry, there was an error processing your message. Please try again.")
       }
     })
-
-    // Handle verification from web app
-    if (body.action === 'verify') {
-      console.log('Processing verification request:', body)
-      
-      if (!body.code || !body.userId) {
-        return new Response(
-          JSON.stringify({ error: 'Verification code and user ID are required' }),
-          { 
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        )
-      }
-
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      )
-
-      console.log('Looking for verification code:', body.code.toUpperCase())
-
-      // Find the telegram user with this verification code
-      const { data: telegramUser, error: findError } = await supabase
-        .from('telegram_users')
-        .select('*')
-        .eq('verification_code', body.code.toUpperCase())
-        .maybeSingle()
-
-      if (findError || !telegramUser) {
-        console.error('Error finding verification code:', findError)
-        return new Response(
-          JSON.stringify({ error: 'Invalid verification code' }),
-          { 
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        )
-      }
-
-      // Update the telegram user with the user_id and clear the verification code
-      const { error: updateError } = await supabase
-        .from('telegram_users')
-        .update({ 
-          user_id: body.userId,
-          verification_code: null 
-        })
-        .eq('id', telegramUser.id)
-
-      if (updateError) {
-        console.error('Error updating telegram user:', updateError)
-        return new Response(
-          JSON.stringify({ error: 'Failed to verify telegram user' }),
-          { 
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        )
-      }
-
-      try {
-        await bot.api.sendMessage(telegramUser.telegram_id, 'Your account has been successfully verified! You can now use commands like "list tasks" to interact with your tasks.')
-      } catch (error) {
-        console.error('Error sending confirmation message:', error)
-      }
-
-      return new Response(
-        JSON.stringify({ success: true }),
-        { 
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
-    }
-
-    // Set up webhook if it's a setup request
-    if (body.action === 'setup-webhook') {
-      const webhookUrl = body.webhookUrl
-      console.log('Setting up webhook URL:', webhookUrl)
-      
-      try {
-        await bot.api.setWebhook(webhookUrl)
-        return new Response(
-          JSON.stringify({ success: true, message: 'Webhook set successfully' }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200 
-          }
-        )
-      } catch (error) {
-        console.error('Error setting webhook:', error)
-        return new Response(
-          JSON.stringify({ error: 'Failed to set webhook', details: error.message }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 500 
-          }
-        )
-      }
-    }
 
     // Set up webhook handler with error logging
     try {
