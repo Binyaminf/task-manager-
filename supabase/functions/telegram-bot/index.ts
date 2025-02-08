@@ -51,7 +51,7 @@ serve(async (req) => {
       }
 
       const supabase = createClient(supabaseUrl, supabaseKey)
-      console.log('Supabase client initialized with service role for verification code storage')
+      console.log('Supabase client initialized with service role')
 
       try {
         // Store or update the verification code
@@ -60,11 +60,9 @@ serve(async (req) => {
           .upsert([
             { 
               telegram_id: chatId,
-              verification_code: verificationCode
+              verification_code: verificationCode,
             }
-          ], {
-            onConflict: 'telegram_id'
-          })
+          ])
 
         if (error) {
           console.error('Error storing verification code:', error)
@@ -78,6 +76,17 @@ serve(async (req) => {
         console.error('Unexpected error in start command:', error)
         await ctx.reply("An unexpected error occurred. Please try again later.")
       }
+    })
+
+    // Handle /help command explicitly
+    bot.command("help", async (ctx) => {
+      await ctx.reply(
+        "Here are the commands I understand:\n\n" +
+        "• 'list tasks' - Show your upcoming tasks\n" +
+        "• /start - Get a new verification code\n" +
+        "• /help - Show this help message\n\n" +
+        "If you need help, just send 'help' and I'll show you this message again."
+      )
     })
 
     // Handle all other messages
@@ -138,7 +147,7 @@ serve(async (req) => {
         console.log('User is verified with user_id:', telegramUser.user_id)
 
         // Process the message based on content
-        if (messageText.includes('list tasks')) {
+        if (messageText === 'list tasks' || messageText === '/list') {
           console.log('Fetching tasks for user:', telegramUser.user_id)
           
           const { data: tasks, error: tasksError } = await supabase
@@ -172,16 +181,18 @@ serve(async (req) => {
         } else if (messageText === 'help') {
           await ctx.reply(
             "Here are the commands I understand:\n\n" +
-            "• 'list tasks' - Show your upcoming tasks\n" +
-            "• /start - Get a new verification code\n\n" +
+            "• 'list tasks' or /list - Show your upcoming tasks\n" +
+            "• /start - Get a new verification code\n" +
+            "• /help - Show this help message\n\n" +
             "If you need help, just send 'help' and I'll show you this message again."
           )
         } else {
           console.log('Sending help message for unknown command')
           await ctx.reply(
             "I don't understand that command. Here are the commands I understand:\n\n" +
-            "• 'list tasks' - Show your upcoming tasks\n" +
-            "• /start - Get a new verification code\n\n" +
+            "• 'list tasks' or /list - Show your upcoming tasks\n" +
+            "• /start - Get a new verification code\n" +
+            "• /help - Show this help message\n\n" +
             "If you need help, just send 'help' and I'll show you this message again."
           )
         }
@@ -298,7 +309,7 @@ serve(async (req) => {
       console.log('Webhook handler set up successfully')
       
       const response = await handler(req)
-      console.log('Webhook handler processed request')
+      console.log('Webhook handler processed request successfully')
       
       // Add CORS headers to the response
       const newHeaders = new Headers(response.headers)
@@ -330,4 +341,3 @@ serve(async (req) => {
     )
   }
 })
-
