@@ -51,7 +51,7 @@ serve(async (req) => {
       }
 
       const supabase = createClient(supabaseUrl, supabaseKey)
-      console.log('Supabase client initialized for verification code storage')
+      console.log('Supabase client initialized with service role for verification code storage')
 
       try {
         // Store or update the verification code
@@ -60,8 +60,7 @@ serve(async (req) => {
           .upsert([
             { 
               telegram_id: chatId,
-              verification_code: verificationCode,
-              user_id: null // Clear any existing user_id for re-verification
+              verification_code: verificationCode
             }
           ], {
             onConflict: 'telegram_id'
@@ -85,7 +84,7 @@ serve(async (req) => {
     bot.on("message", async (ctx) => {
       try {
         console.log('Message handler triggered')
-        console.log('Update type:', ctx.update.message?.text ? 'text' : 'other')
+        console.log('Message type:', ctx.update.message?.text ? 'text' : 'other')
         console.log('Full context:', JSON.stringify(ctx.update, null, 2))
         
         const rawMessageText = ctx.message?.text
@@ -101,7 +100,7 @@ serve(async (req) => {
         const chatId = ctx.chat.id.toString()
         console.log('Processing message:', messageText, 'from chat ID:', chatId)
 
-        // Initialize Supabase client
+        // Initialize Supabase client with service role
         const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
         const supabaseUrl = Deno.env.get('SUPABASE_URL')
         const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -112,14 +111,13 @@ serve(async (req) => {
         }
 
         const supabase = createClient(supabaseUrl, supabaseKey)
-        console.log('Supabase client initialized')
+        console.log('Supabase client initialized with service role')
 
         // Check if the user is verified
         const { data: telegramUser, error: userError } = await supabase
           .from('telegram_users')
           .select('*')
           .eq('telegram_id', chatId)
-          .is('verification_code', null)  // Only select verified users
           .maybeSingle()
 
         console.log('Telegram user query result:', { data: telegramUser, error: userError })
@@ -130,14 +128,14 @@ serve(async (req) => {
           return
         }
 
-        // If user is not verified, provide guidance
+        // If user is not verified or has no user_id, provide guidance
         if (!telegramUser?.user_id) {
           console.log('User not verified, telegramUser:', telegramUser)
           await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
           return
         }
 
-        console.log('User is verified, processing command:', messageText)
+        console.log('User is verified with user_id:', telegramUser.user_id)
 
         // Process the message based on content
         if (messageText.includes('list tasks')) {
@@ -197,9 +195,9 @@ serve(async (req) => {
     if (body.action === 'verify') {
       console.log('Processing verification request:', body)
       
-      if (!body.code) {
+      if (!body.code || !body.userId) {
         return new Response(
-          JSON.stringify({ error: 'Verification code is required' }),
+          JSON.stringify({ error: 'Verification code and user ID are required' }),
           { 
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -220,7 +218,7 @@ serve(async (req) => {
         .from('telegram_users')
         .select('*')
         .eq('verification_code', body.code.toUpperCase())
-        .single()
+        .maybeSingle()
 
       if (findError || !telegramUser) {
         console.error('Error finding verification code:', findError)
@@ -332,3 +330,4 @@ serve(async (req) => {
     )
   }
 })
+
