@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { Bot, webhookCallback } from "https://deno.land/x/grammy@v1.21.1/mod.ts"
 
@@ -15,12 +16,15 @@ serve(async (req) => {
   }
 
   try {
+    // Clone the request before consuming its body
+    const clonedReq = req.clone()
+    
     // Log request details
     console.log('Received webhook request')
     console.log('Request method:', req.method)
     console.log('Request headers:', Object.fromEntries(req.headers.entries()))
     
-    const body = await req.json()
+    const body = await clonedReq.json()
     console.log('Request body:', JSON.stringify(body, null, 2))
 
     // Initialize bot with error handling
@@ -313,7 +317,7 @@ serve(async (req) => {
     const handler = webhookCallback(bot, "std/http")
     console.log('Webhook handler set up successfully')
     
-    // Process the request
+    // Process the request with the original request
     const response = await handler(req)
     console.log('Webhook handler processed request successfully')
     console.log('Response status:', response.status)
