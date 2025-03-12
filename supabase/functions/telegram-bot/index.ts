@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { Bot, webhookCallback } from "https://deno.land/x/grammy@v1.21.1/mod.ts"
 
@@ -11,16 +10,18 @@ const corsHeaders = {
 serve(async (req) => {
   // Handle CORS
   if (req.method === "OPTIONS") {
+    console.log('Received OPTIONS request')
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
     // Log request details
-    console.log('Request method:', req.method);
-    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
+    console.log('Received webhook request')
+    console.log('Request method:', req.method)
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()))
     
     const body = await req.json()
-    console.log('Received webhook request:', JSON.stringify(body, null, 2))
+    console.log('Request body:', JSON.stringify(body, null, 2))
 
     // Initialize bot with error handling
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
@@ -34,20 +35,31 @@ serve(async (req) => {
 
     // Handle webhook setup request
     if (body.action === 'setup-webhook') {
+      console.log('Setting up webhook...')
       const webhookUrl = body.webhookUrl
-      console.log('Setting up webhook URL:', webhookUrl)
+      console.log('Webhook URL:', webhookUrl)
       
       try {
-        // Remove any existing webhook first
+        // Delete any existing webhook first
         await bot.api.deleteWebhook()
         console.log('Deleted existing webhook')
         
-        // Set the new webhook
-        await bot.api.setWebhook(webhookUrl)
+        // Set the new webhook with specific allowed updates
+        await bot.api.setWebhook(webhookUrl, {
+          allowed_updates: ["message", "callback_query", "my_chat_member"]
+        })
         console.log('Set new webhook successfully')
         
+        // Verify webhook info
+        const webhookInfo = await bot.api.getWebhookInfo()
+        console.log('Webhook info:', JSON.stringify(webhookInfo, null, 2))
+        
         return new Response(
-          JSON.stringify({ success: true, message: 'Webhook set successfully' }),
+          JSON.stringify({ 
+            success: true, 
+            message: 'Webhook set successfully',
+            webhookInfo 
+          }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200 
@@ -142,6 +154,8 @@ serve(async (req) => {
 
     // Configure bot to not use webhookReply
     bot.api.config.use((prev, method, payload) => {
+      console.log('API method called:', method)
+      console.log('API payload:', JSON.stringify(payload, null, 2))
       // Force webhookReply to false for all API calls
       return prev(method, { ...payload, webhook_reply: false })
     })
@@ -198,48 +212,60 @@ serve(async (req) => {
     bot.command("list", async (ctx) => {
       console.log('List command received from:', ctx.chat.id)
       const chatId = ctx.chat.id.toString()
+      
       const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
       const supabase = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       )
 
-      // Check if the user is verified
-      const { data: telegramUser, error: userError } = await supabase
-        .from('telegram_users')
-        .select('*')
-        .eq('telegram_id', chatId)
-        .maybeSingle()
+      try {
+        // Check if the user is verified
+        const { data: telegramUser, error: userError } = await supabase
+          .from('telegram_users')
+          .select('*')
+          .eq('telegram_id', chatId)
+          .maybeSingle()
 
-      if (userError || !telegramUser?.user_id) {
-        await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
-        return
+        if (userError) {
+          console.error('Error fetching telegram user:', userError)
+          await ctx.reply("Sorry, there was an error checking your verification status. Please try again.")
+          return
+        }
+
+        if (!telegramUser?.user_id) {
+          await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
+          return
+        }
+
+        // Fetch tasks
+        const { data: tasks, error: tasksError } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('user_id', telegramUser.user_id)
+          .order('due_date', { ascending: true })
+          .limit(5)
+
+        if (tasksError) {
+          console.error('Error fetching tasks:', tasksError)
+          await ctx.reply("Sorry, there was an error fetching your tasks. Please try again.")
+          return
+        }
+
+        if (!tasks?.length) {
+          await ctx.reply("You don't have any tasks yet.")
+          return
+        }
+
+        const taskList = tasks
+          .map(task => `• ${task.summary}${task.due_date ? ` (Due: ${new Date(task.due_date).toLocaleDateString()})` : ''}`)
+          .join('\n')
+
+        await ctx.reply(`Here are your latest tasks:\n\n${taskList}`)
+      } catch (error) {
+        console.error('Unexpected error in list command:', error)
+        await ctx.reply("An unexpected error occurred. Please try again later.")
       }
-
-      // Fetch tasks
-      const { data: tasks, error: tasksError } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', telegramUser.user_id)
-        .order('due_date', { ascending: true })
-        .limit(5)
-
-      if (tasksError) {
-        console.error('Error fetching tasks:', tasksError)
-        await ctx.reply("Sorry, there was an error fetching your tasks. Please try again.")
-        return
-      }
-
-      if (!tasks?.length) {
-        await ctx.reply("You don't have any tasks yet.")
-        return
-      }
-
-      const taskList = tasks
-        .map(task => `• ${task.summary}${task.due_date ? ` (Due: ${new Date(task.due_date).toLocaleDateString()})` : ''}`)
-        .join('\n')
-
-      await ctx.reply(`Here are your latest tasks:\n\n${taskList}`)
     })
 
     // Handle text messages for commands without /
@@ -256,59 +282,18 @@ serve(async (req) => {
 
     bot.hears("list tasks", async (ctx) => {
       console.log('List tasks text received from:', ctx.chat.id)
-      const chatId = ctx.chat.id.toString()
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      )
-
-      // Check if the user is verified
-      const { data: telegramUser, error: userError } = await supabase
-        .from('telegram_users')
-        .select('*')
-        .eq('telegram_id', chatId)
-        .maybeSingle()
-
-      if (userError || !telegramUser?.user_id) {
-        await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
-        return
-      }
-
-      // Fetch tasks
-      const { data: tasks, error: tasksError } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', telegramUser.user_id)
-        .order('due_date', { ascending: true })
-        .limit(5)
-
-      if (tasksError) {
-        console.error('Error fetching tasks:', tasksError)
-        await ctx.reply("Sorry, there was an error fetching your tasks. Please try again.")
-        return
-      }
-
-      if (!tasks?.length) {
-        await ctx.reply("You don't have any tasks yet.")
-        return
-      }
-
-      const taskList = tasks
-        .map(task => `• ${task.summary}${task.due_date ? ` (Due: ${new Date(task.due_date).toLocaleDateString()})` : ''}`)
-        .join('\n')
-
-      await ctx.reply(`Here are your latest tasks:\n\n${taskList}`)
+      await bot.commands.get("list")?.(ctx)
     })
 
-    // Handle all other messages
+    // Handle all other messages with improved logging
     bot.on("message", async (ctx) => {
-      console.log('Received message:', ctx.message)
+      console.log('Received message:', JSON.stringify(ctx.message, null, 2))
       if (!ctx.message.text) {
         await ctx.reply("I can only process text messages.")
         return
       }
 
+      console.log('Processing text message:', ctx.message.text)
       // For unrecognized commands, show help message
       await ctx.reply(
         "I don't understand that command. Here are the commands I understand:\n\n" +
@@ -319,12 +304,19 @@ serve(async (req) => {
       )
     })
 
+    // Log any errors that occur during message handling
+    bot.catch((err) => {
+      console.error('Error in bot message handler:', err)
+    })
+
     // Set up webhook handler
     const handler = webhookCallback(bot, "std/http")
     console.log('Webhook handler set up successfully')
     
+    // Process the request
     const response = await handler(req)
     console.log('Webhook handler processed request successfully')
+    console.log('Response status:', response.status)
     
     // Add CORS headers to the response
     const newHeaders = new Headers(response.headers)
