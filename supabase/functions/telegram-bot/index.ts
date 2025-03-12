@@ -239,8 +239,66 @@ serve(async (req) => {
       )
     })
 
+    // Fix: Improved /list command and "list tasks" command
     bot.command("list", async (ctx) => {
       console.log('List command received from:', ctx.chat.id)
+      await handleListTasks(ctx)
+    })
+
+    // Handle priority overview command
+    bot.command("priority", async (ctx) => {
+      console.log('Priority command received from:', ctx.chat.id)
+      await handlePriorityOverview(ctx)
+    })
+
+    // Handle text messages for commands without /
+    bot.hears("help", async (ctx) => {
+      console.log('Help text received from:', ctx.chat.id)
+      await ctx.reply(
+        "Here are the commands I understand:\n\n" +
+        "• 'list tasks' or /list - Show your upcoming tasks\n" +
+        "• 'priority overview' or /priority - Show your task priorities\n" +
+        "• /start - Get a new verification code\n" +
+        "• /help - Show this help message\n\n" +
+        "You can also simply chat with me using natural language and I'll try to assist you."
+      )
+    })
+
+    // Fix: List tasks text command
+    bot.hears("list tasks", async (ctx) => {
+      console.log('List tasks text received from:', ctx.chat.id)
+      await handleListTasks(ctx)
+    })
+
+    // Handle "priority overview" text command
+    bot.hears("priority overview", async (ctx) => {
+      console.log('Priority overview text received from:', ctx.chat.id)
+      await handlePriorityOverview(ctx)
+    })
+    
+    // Fix: Improved AI-powered free text handling
+    bot.on("message:text", async (ctx) => {
+      if (!ctx.message.text) return
+      
+      const text = ctx.message.text.toLowerCase()
+      console.log('Processing text message:', text)
+      
+      // Skip if message was already handled by command handlers
+      if (
+        text.startsWith('/') || 
+        text === "help" || 
+        text === "list tasks" || 
+        text === "priority overview"
+      ) {
+        return
+      }
+      
+      // Process as free text query
+      await handleFreeTextQuery(ctx)
+    })
+
+    // Extracted common list tasks functionality
+    async function handleListTasks(ctx) {
       const chatId = ctx.chat.id.toString()
       
       const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
@@ -296,62 +354,7 @@ serve(async (req) => {
         console.error('Unexpected error in list command:', error)
         await ctx.reply("An unexpected error occurred. Please try again later.")
       }
-    })
-
-    // New: Priority overview command
-    bot.command("priority", async (ctx) => {
-      console.log('Priority command received from:', ctx.chat.id)
-      await handlePriorityOverview(ctx)
-    })
-
-    // Handle text messages for commands without /
-    bot.hears("help", async (ctx) => {
-      console.log('Help text received from:', ctx.chat.id)
-      await ctx.reply(
-        "Here are the commands I understand:\n\n" +
-        "• 'list tasks' or /list - Show your upcoming tasks\n" +
-        "• 'priority overview' or /priority - Show your task priorities\n" +
-        "• /start - Get a new verification code\n" +
-        "• /help - Show this help message\n\n" +
-        "You can also simply chat with me using natural language and I'll try to assist you."
-      )
-    })
-
-    bot.hears("list tasks", async (ctx) => {
-      console.log('List tasks text received from:', ctx.chat.id)
-      await bot.commands.get("list")?.(ctx)
-    })
-
-    // New: Handle "priority overview" text command
-    bot.hears("priority overview", async (ctx) => {
-      console.log('Priority overview text received from:', ctx.chat.id)
-      await handlePriorityOverview(ctx)
-    })
-    
-    // New: AI-powered free text handling
-    bot.on("message", async (ctx) => {
-      console.log('Received message:', JSON.stringify(ctx.message, null, 2))
-      if (!ctx.message.text) {
-        await ctx.reply("I can only process text messages.")
-        return
-      }
-
-      const text = ctx.message.text.toLowerCase()
-      console.log('Processing text message:', text)
-      
-      // Skip if message was already handled by command handlers
-      if (
-        text.startsWith('/') || 
-        text === "help" || 
-        text === "list tasks" || 
-        text === "priority overview"
-      ) {
-        return
-      }
-      
-      // Process as free text query
-      await handleFreeTextQuery(ctx)
-    })
+    }
 
     // Function to handle priority overview
     async function handlePriorityOverview(ctx) {
@@ -447,10 +450,12 @@ serve(async (req) => {
       }
     }
 
-    // Function to handle free text queries with AI
+    // Fixed: Improved free text query handling
     async function handleFreeTextQuery(ctx) {
       const chatId = ctx.chat.id.toString()
       const userMessage = ctx.message.text
+      
+      console.log('Processing free text query:', userMessage)
       
       const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
       const supabase = createClient(
@@ -508,6 +513,8 @@ serve(async (req) => {
             ).join("\n")
         }
 
+        console.log('Sending request to OpenAI')
+        
         // Call OpenAI
         const response = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
@@ -531,17 +538,20 @@ serve(async (req) => {
           })
         });
 
+        console.log('OpenAI response status:', response.status)
+        
         if (!response.ok) {
-          const error = await response.text();
-          console.error('OpenAI API error:', error);
-          await ctx.reply("I'm having trouble processing your request right now. Please try one of my standard commands like 'list tasks' or 'priority overview'.");
-          return;
+          const errorText = await response.text()
+          console.error('OpenAI API error:', errorText)
+          await ctx.reply("I'm having trouble processing your request right now. Please try one of my standard commands like 'list tasks' or 'priority overview'.")
+          return
         }
 
-        const data = await response.json();
-        const aiResponse = data.choices[0].message.content;
+        const data = await response.json()
+        console.log('OpenAI response:', JSON.stringify(data, null, 2))
         
-        await ctx.reply(aiResponse);
+        const aiResponse = data.choices[0].message.content
+        await ctx.reply(aiResponse)
       } catch (error) {
         console.error('Error in AI response:', error)
         await ctx.reply("I'm sorry, but I encountered an error while processing your message. Please try using standard commands like 'list tasks' or 'priority overview'.")
@@ -553,7 +563,7 @@ serve(async (req) => {
       console.error('Error in bot message handler:', err)
     })
 
-    // Set up webhook handler
+    // Set up webhook handler 
     const handler = webhookCallback(bot, "std/http")
     console.log('Webhook handler set up successfully')
     

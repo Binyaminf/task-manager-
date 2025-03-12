@@ -11,11 +11,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AlertCircle, RefreshCw } from "lucide-react";
 
 export function TelegramSettings() {
   const [verificationCode, setVerificationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [setupStatus, setSetupStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const { toast } = useToast();
 
   // Check if user already has a connected Telegram account
@@ -39,6 +41,7 @@ export function TelegramSettings() {
   };
 
   const setupWebhook = async () => {
+    setSetupStatus('loading');
     const webhookUrl = `https://acmmuhybijjkycfoxuzc.supabase.co/functions/v1/telegram-bot`;
     
     try {
@@ -52,8 +55,10 @@ export function TelegramSettings() {
       if (error) throw error;
 
       console.log('Webhook setup successful');
+      setSetupStatus('success');
     } catch (error) {
       console.error('Error setting up webhook:', error);
+      setSetupStatus('error');
     }
   };
 
@@ -152,16 +157,44 @@ export function TelegramSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {setupStatus === 'error' && (
+          <div className="bg-red-50 border border-red-200 p-4 rounded-md flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-700">
+                Bot service error
+              </p>
+              <p className="text-sm text-red-600 mt-1">
+                There was a problem connecting to the Telegram bot service. Please try again later.
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={setupWebhook} 
+                className="mt-2"
+                disabled={setupStatus === 'loading'}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${setupStatus === 'loading' ? 'animate-spin' : ''}`} />
+                Retry connection
+              </Button>
+            </div>
+          </div>
+        )}
+
         {isConnected ? (
           <div className="space-y-4">
             <div className="bg-green-50 border border-green-200 p-4 rounded-md">
-              <p className="text-sm text-green-700">
-                ✅ Your Telegram account is connected! You can now use the bot to:
+              <p className="text-sm font-medium text-green-700">
+                ✅ Your Telegram account is connected!
+              </p>
+              <p className="text-sm text-green-600 mt-1">
+                You can now use the bot to manage your tasks. Here are some commands:
               </p>
               <ul className="list-disc list-inside mt-2 text-sm text-green-700">
                 <li>List your tasks using "list tasks" command</li>
                 <li>View priority overview using "priority overview" command</li>
-                <li>Chat with the AI assistant for task-related questions</li>
+                <li>Ask questions using natural language</li>
+                <li>Use /help to see all available commands</li>
               </ul>
             </div>
             <Button variant="outline" onClick={handleReset} disabled={isLoading}>
