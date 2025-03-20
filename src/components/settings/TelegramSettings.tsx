@@ -1,118 +1,52 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, CheckCircle, AlertCircle, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function TelegramSettings() {
-  const [verificationCode, setVerificationCode] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  const [username, setUsername] = useState("");
+  const [setupCode, setSetupCode] = useState("");
   const [setupStatus, setSetupStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [telegramData, setTelegramData] = useState<{
+    username: string;
+    activated: boolean;
+    setup_date: string;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // Check if user already has a connected Telegram account
-  const checkConnection = async () => {
-    const session = await supabase.auth.getSession();
-    if (!session.data.session?.user?.id) return;
-
+  const fetchTelegramSettings = async () => {
     try {
+      setIsLoading(true);
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.user) {
+        throw new Error("User not authenticated");
+      }
+
       const { data, error } = await supabase
-        .from('telegram_users')
+        .from('telegram_settings')
         .select('*')
-        .eq('user_id', session.data.session.user.id)
-        .maybeSingle();
-      
-      if (data && !error) {
-        setIsConnected(true);
+        .eq('user_id', session.session.user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setTelegramData(data);
+        setUsername(data.username);
       }
     } catch (error) {
-      console.error('Error checking Telegram connection:', error);
-    }
-  };
-
-  const setupWebhook = async () => {
-    setSetupStatus('loading');
-    const webhookUrl = `https://acmmuhybijjkycfoxuzc.supabase.co/functions/v1/telegram-bot`;
-    
-    try {
-      const { error } = await supabase.functions.invoke('telegram-bot', {
-        body: { 
-          action: 'setup-webhook',
-          webhookUrl
-        }
-      });
-
-      if (error) throw error;
-
-      console.log('Webhook setup successful');
-      setSetupStatus('success');
-    } catch (error) {
-      console.error('Error setting up webhook:', error);
-      setSetupStatus('error');
-    }
-  };
-
-  // Set up webhook and check connection when component mounts
-  useEffect(() => {
-    setupWebhook();
-    checkConnection();
-  }, []);
-
-  const handleVerification = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!verificationCode) {
+      console.error("Error fetching Telegram settings:", error);
       toast({
         title: "Error",
-        description: "Please enter the verification code",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const session = await supabase.auth.getSession();
-    if (!session.data.session?.user?.id) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to verify your Telegram account",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.functions.invoke('telegram-bot', {
-        body: { 
-          action: 'verify',
-          code: verificationCode.toUpperCase(),
-          userId: session.data.session.user.id
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Telegram account linked successfully!",
-      });
-      setVerificationCode("");
-      setIsConnected(true);
-    } catch (error) {
-      console.error('Error verifying code:', error);
-      toast({
-        title: "Error",
-        description: "Failed to verify code. Please try again.",
+        description: "Failed to load Telegram settings",
         variant: "destructive",
       });
     } finally {
@@ -120,27 +54,88 @@ export function TelegramSettings() {
     }
   };
 
-  const handleReset = async () => {
-    setIsLoading(true);
-    const session = await supabase.auth.getSession();
-    if (!session.data.session?.user?.id) return;
+  useState(() => {
+    fetchTelegramSettings();
+  }, []);
 
-    try {
-      await supabase
-        .from('telegram_users')
-        .update({ user_id: null })
-        .eq('user_id', session.data.session.user.id);
-      
-      setIsConnected(false);
-      toast({
-        title: "Success",
-        description: "Telegram connection has been reset. You can now link a new account.",
-      });
-    } catch (error) {
-      console.error('Error resetting connection:', error);
+  const setupTelegramBot = async () => {
+    if (!username.trim()) {
       toast({
         title: "Error",
-        description: "Failed to reset Telegram connection.",
+        description: "Please enter your Telegram username",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setSetupStatus('loading');
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.user) {
+        throw new Error("User not authenticated");
+      }
+
+      const { data, error } = await supabase.functions.invoke('telegram-bot', {
+        body: JSON.stringify({
+          action: 'setup',
+          username: username.trim(),
+          userId: session.session.user.id,
+        }),
+      });
+
+      if (error) throw error;
+
+      if (data && data.success) {
+        setSetupCode(data.setupCode);
+        setSetupStatus('success');
+        toast({
+          title: "Success",
+          description: "Setup initiated! Use the code to activate your bot",
+        });
+      } else {
+        throw new Error(data?.message || "Failed to setup Telegram bot");
+      }
+    } catch (error) {
+      console.error("Error setting up Telegram bot:", error);
+      setSetupStatus('error');
+      toast({
+        title: "Error",
+        description: error.message || "Failed to setup Telegram bot",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const resetSetup = () => {
+    setSetupStatus('idle');
+    setSetupCode("");
+  };
+
+  const disconnectTelegram = async () => {
+    try {
+      setIsLoading(true);
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.user) {
+        throw new Error("User not authenticated");
+      }
+
+      const { error } = await supabase
+        .from('telegram_settings')
+        .delete()
+        .eq('user_id', session.session.user.id);
+
+      if (error) throw error;
+
+      setTelegramData(null);
+      toast({
+        title: "Success",
+        description: "Telegram bot disconnected",
+      });
+    } catch (error) {
+      console.error("Error disconnecting Telegram:", error);
+      toast({
+        title: "Error",
+        description: "Failed to disconnect Telegram bot",
         variant: "destructive",
       });
     } finally {
@@ -153,81 +148,81 @@ export function TelegramSettings() {
       <CardHeader>
         <CardTitle>Telegram Integration</CardTitle>
         <CardDescription>
-          Link your Telegram account to manage tasks via chat
+          Connect your account to Telegram to receive updates and manage your tasks via chat
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {setupStatus === 'error' && (
-          <div className="bg-red-50 border border-red-200 p-4 rounded-md flex items-start gap-2">
-            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-red-700">
-                Bot service error
-              </p>
-              <p className="text-sm text-red-600 mt-1">
-                There was a problem connecting to the Telegram bot service. Please try again later.
-              </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={setupWebhook} 
-                className="mt-2"
-                disabled={setupStatus === 'loading'}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${setupStatus === 'loading' ? 'animate-spin' : ''}`} />
-                Retry connection
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {isConnected ? (
+      <CardContent>
+        {telegramData?.activated ? (
           <div className="space-y-4">
-            <div className="bg-green-50 border border-green-200 p-4 rounded-md">
-              <p className="text-sm font-medium text-green-700">
-                ✅ Your Telegram account is connected!
-              </p>
-              <p className="text-sm text-green-600 mt-1">
-                You can now use the bot to manage your tasks. Here are some commands:
-              </p>
-              <ul className="list-disc list-inside mt-2 text-sm text-green-700">
-                <li>List your tasks using "list tasks" command</li>
-                <li>View priority overview using "priority overview" command</li>
-                <li>Ask questions using natural language</li>
-                <li>Use /help to see all available commands</li>
-              </ul>
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <p>Connected to @{telegramData.username}</p>
             </div>
-            <Button variant="outline" onClick={handleReset} disabled={isLoading}>
-              {isLoading ? "Processing..." : "Reset Connection"}
+            <p className="text-sm text-muted-foreground">
+              Connected since {new Date(telegramData.setup_date).toLocaleDateString()}
+            </p>
+            <Button variant="destructive" onClick={disconnectTelegram} disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
+              Disconnect
             </Button>
           </div>
         ) : (
-          <>
+          <div className="space-y-4">
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                1. Start a chat with our bot: @TaskManagerAssistantBot
-              </p>
-              <p className="text-sm text-muted-foreground">
-                2. Send the /start command to receive your verification code
-              </p>
-              <p className="text-sm text-muted-foreground">
-                3. Enter the code below to link your account
+              <label htmlFor="username" className="block text-sm font-medium">
+                Your Telegram Username
+              </label>
+              <Input
+                id="username"
+                placeholder="@yourusername"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={setupStatus === 'loading' || setupStatus === 'success'}
+              />
+              <p className="text-xs text-muted-foreground">
+                Don't include the @ symbol, just your username
               </p>
             </div>
-            <form onSubmit={handleVerification} className="flex space-x-2">
-              <Input
-                placeholder="Enter verification code"
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
-                className="max-w-[200px]"
-              />
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Verifying..." : "Verify"}
-              </Button>
-            </form>
-          </>
+
+            {setupStatus === 'success' && (
+              <Alert>
+                <AlertDescription className="space-y-4">
+                  <p>Send the following code to our bot @TaskManagerAIBot on Telegram:</p>
+                  <code className="block bg-muted p-2 rounded font-mono">{setupCode}</code>
+                  <Button size="sm" onClick={resetSetup}>Try with a different username</Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {setupStatus === 'error' && (
+              <Alert variant="destructive">
+                <AlertDescription className="space-y-2">
+                  <p>Failed to set up Telegram integration</p>
+                  <Button size="sm" variant="outline" onClick={resetSetup}>Try again</Button>
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
         )}
       </CardContent>
+      {!telegramData?.activated && setupStatus !== 'success' && (
+        <CardFooter>
+          <Button 
+            onClick={setupTelegramBot} 
+            disabled={setupStatus === 'loading'}
+            className="w-full"
+          >
+            {setupStatus === 'loading' ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Setting up...
+              </>
+            ) : (
+              "Connect to Telegram"
+            )}
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 }
