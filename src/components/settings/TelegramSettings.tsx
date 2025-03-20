@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,15 +8,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+type SetupStatus = 'idle' | 'loading' | 'success' | 'error';
+
+interface TelegramSettingsData {
+  username: string;
+  activated: boolean;
+  setup_date: string;
+}
+
 export function TelegramSettings() {
   const [username, setUsername] = useState("");
   const [setupCode, setSetupCode] = useState("");
-  const [setupStatus, setSetupStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [telegramData, setTelegramData] = useState<{
-    username: string;
-    activated: boolean;
-    setup_date: string;
-  } | null>(null);
+  const [setupStatus, setSetupStatus] = useState<SetupStatus>('idle');
+  const [telegramData, setTelegramData] = useState<TelegramSettingsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -30,16 +34,16 @@ export function TelegramSettings() {
 
       const { data, error } = await supabase
         .from('telegram_settings')
-        .select('*')
+        .select('username, activated, setup_date')
         .eq('user_id', session.session.user.id)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         throw error;
       }
 
       if (data) {
-        setTelegramData(data);
+        setTelegramData(data as TelegramSettingsData);
         setUsername(data.username);
       }
     } catch (error) {
@@ -54,7 +58,7 @@ export function TelegramSettings() {
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     fetchTelegramSettings();
   }, []);
 
