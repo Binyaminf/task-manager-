@@ -283,6 +283,39 @@ export type Database = {
           },
         ]
       }
+      telegram_settings: {
+        Row: {
+          activated: boolean | null
+          created_at: string | null
+          id: string
+          setup_code: string | null
+          setup_date: string | null
+          updated_at: string | null
+          user_id: string
+          username: string
+        }
+        Insert: {
+          activated?: boolean | null
+          created_at?: string | null
+          id?: string
+          setup_code?: string | null
+          setup_date?: string | null
+          updated_at?: string | null
+          user_id: string
+          username: string
+        }
+        Update: {
+          activated?: boolean | null
+          created_at?: string | null
+          id?: string
+          setup_code?: string | null
+          setup_date?: string | null
+          updated_at?: string | null
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       telegram_users: {
         Row: {
           created_at: string
