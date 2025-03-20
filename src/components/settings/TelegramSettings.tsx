@@ -32,6 +32,7 @@ export function TelegramSettings() {
         throw new Error("User not authenticated");
       }
 
+      // First check if the telegram_settings table exists in the database schema
       const { data, error } = await supabase
         .from('telegram_settings')
         .select('username, activated, setup_date')
