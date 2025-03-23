@@ -1,17 +1,20 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import TaskEdit from "./components/TaskEdit";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { AuthWrapper } from "@/components/auth/AuthWrapper";
+import { AuthStateHandler } from "@/components/auth/AuthStateHandler";
+import { Session } from "@supabase/supabase-js";
 import { Task } from "@/types/task";
 import { useToast } from "@/hooks/use-toast";
-import { Session } from "@supabase/supabase-js";
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -100,83 +103,43 @@ const TaskEditWrapper = () => {
   return <TaskEdit tasks={tasks || []} onSave={handleSaveTask} />;
 };
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          navigate('/login', { replace: true });
-        }
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Session check error:', error);
-        navigate('/login', { replace: true });
-      }
-    };
-
-    checkSession();
-  }, [navigate]);
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  return <>{children}</>;
-};
-
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+  const handleSessionChange = (newSession: Session | null) => {
+    setSession(newSession);
+  };
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const handleAuthError = (error: string | null) => {
+    setAuthError(error);
+  };
 
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <TooltipProvider>
+          <AuthStateHandler 
+            onSessionChange={handleSessionChange} 
+            onError={handleAuthError}
+          />
+          
           <Routes>
             <Route 
               path="/" 
-              element={
-                <ProtectedRoute>
-                  <Index />
-                </ProtectedRoute>
-              } 
+              element={session ? <Index /> : <Navigate to="/login" replace />} 
             />
             <Route 
               path="/settings" 
-              element={
-                <ProtectedRoute>
-                  <Settings />
-                </ProtectedRoute>
-              } 
+              element={session ? <Settings /> : <Navigate to="/login" replace />} 
             />
             <Route 
               path="/edit/:taskId" 
-              element={
-                <ProtectedRoute>
-                  <TaskEditWrapper />
-                </ProtectedRoute>
-              } 
+              element={session ? <TaskEditWrapper /> : <Navigate to="/login" replace />} 
             />
             <Route 
               path="/login" 
-              element={session ? <Navigate to="/" replace /> : null} 
+              element={session ? <Navigate to="/" replace /> : <AuthWrapper authError={authError} />} 
             />
           </Routes>
           <Toaster />
