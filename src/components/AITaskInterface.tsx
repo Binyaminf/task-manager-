@@ -48,14 +48,11 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
       console.log('Sending request to Edge Function with text:', input.trim());
       console.log('Current time reference:', currentTime);
       
-      // Fix: properly format the request body as a JSON object
+      // Format the request body properly with stringified JSON
       const { data, error } = await supabase.functions.invoke('process-task-text', {
-        body: JSON.stringify({ 
+        body: { 
           text: input.trim(),
           currentTime: currentTime
-        }),
-        headers: {
-          'Content-Type': 'application/json'
         }
       });
 

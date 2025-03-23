@@ -1,4 +1,8 @@
+
 project_id = "acmmuhybijjkycfoxuzc"
+
+[functions.process-task-text]
+verify_jwt = false
 
 [functions.telegram-bot]
 verify_jwt = false
