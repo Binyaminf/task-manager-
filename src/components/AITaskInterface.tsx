@@ -1,112 +1,64 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
 import { Wand2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import { Badge } from "@/components/ui/badge";
+import { ProcessingSteps } from "./ai/ProcessingSteps";
+import { AIAnalysisDisplay } from "./ai/AIAnalysisDisplay";
+import { useAIProcessing } from "@/hooks/useAIProcessing";
 
 interface AITaskInterfaceProps {
   onTaskCreated: () => void;
 }
 
-interface AIAnalysis {
-  confidence: number;
-  relatedKeywords: string[];
-}
-
 export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
   const [input, setInput] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
-  const { toast } = useToast();
+  const [draftTimeout, setDraftTimeout] = useState<number | null>(null);
+  const {
+    isProcessing,
+    processingState,
+    analysis,
+    processAIRequest
+  } = useAIProcessing();
 
-  const processAIRequest = async () => {
-    if (!input.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter some text",
-        variant: "destructive",
-      });
-      return;
+  // Load draft from localStorage
+  useEffect(() => {
+    const savedDraft = localStorage.getItem('taskDraft');
+    if (savedDraft) {
+      setInput(savedDraft);
     }
+  }, []);
 
-    setIsProcessing(true);
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session?.session?.user?.id) {
-        throw new Error("User not authenticated");
-      }
+  // Save draft to localStorage with debounce
+  const saveDraft = (text: string) => {
+    if (draftTimeout) {
+      window.clearTimeout(draftTimeout);
+    }
+    const timeout = window.setTimeout(() => {
+      localStorage.setItem('taskDraft', text);
+    }, 1000);
+    setDraftTimeout(timeout);
+  };
 
-      const currentTime = new Date().toISOString();
-      console.log('Sending request to Edge Function with text:', input.trim());
-      console.log('Current time reference:', currentTime);
-      
-      // Format the request body properly with stringified JSON
-      const { data, error } = await supabase.functions.invoke('process-task-text', {
-        body: { 
-          text: input.trim(),
-          currentTime: currentTime
-        }
-      });
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setInput(text);
+    saveDraft(text);
+  };
 
-      if (error) {
-        console.error('Error from Edge Function:', error);
-        throw error;
-      }
+  const handleSubmit = async () => {
+    const success = await processAIRequest(input);
+    if (success) {
+      setInput("");
+      localStorage.removeItem('taskDraft');
+      onTaskCreated();
+    }
+  };
 
-      console.log('Edge Function response:', data);
-
-      if (!data) {
-        throw new Error('No data received from Edge Function');
-      }
-
-      if (data.type === 'search') {
-        toast({
-          title: "Search Results",
-          description: `Found ${data.results.length} matching tasks`,
-        });
-      } else if (data.type === 'create') {
-        const { error: createError } = await supabase
-          .from('tasks')
-          .insert([{
-            user_id: session.session.user.id,
-            summary: data.task.summary,
-            description: data.task.description,
-            due_date: data.task.dueDate,
-            estimated_duration: data.task.estimatedDuration,
-            priority: data.task.priority,
-            status: "To Do",
-            category: data.task.category
-          }]);
-
-        if (createError) throw createError;
-
-        setAnalysis(data.analysis);
-
-        toast({
-          title: "Success",
-          description: "Task created successfully",
-        });
-        
-        setInput("");
-        onTaskCreated();
-      }
-    } catch (error) {
-      console.error('Error processing AI request:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to process your request. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSubmit();
     }
   };
 
@@ -120,47 +72,31 @@ export function AITaskInterface({ onTaskCreated }: AITaskInterfaceProps) {
 • Research new technologies for the next sprint, should take about 3 days
 • Document the API changes by next week, low priority"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           className="min-h-[100px]"
+          aria-label="Task description"
         />
-        {analysis && (
-          <div className="absolute right-2 top-2">
-            <HoverCard>
-              <HoverCardTrigger asChild>
-                <Badge 
-                  variant="secondary"
-                  className="cursor-help"
-                >
-                  {Math.round(analysis.confidence * 100)}% confidence
-                </Badge>
-              </HoverCardTrigger>
-              <HoverCardContent className="w-80">
-                <div className="space-y-2">
-                  <h4 className="text-sm font-semibold">AI Analysis</h4>
-                  <div className="text-sm">
-                    Related keywords:
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {analysis.relatedKeywords.map((keyword, index) => (
-                        <Badge key={index} variant="outline">
-                          {keyword}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </HoverCardContent>
-            </HoverCard>
-          </div>
-        )}
+        {analysis && <AIAnalysisDisplay analysis={analysis} />}
       </div>
+      
+      <ProcessingSteps 
+        step={processingState.step}
+        error={processingState.error}
+      />
+
       <Button 
-        onClick={processAIRequest} 
+        onClick={handleSubmit} 
         disabled={isProcessing}
         className="w-full"
       >
         <Wand2 className="mr-2 h-4 w-4" />
         {isProcessing ? "Processing..." : "Process with AI"}
       </Button>
+      
+      <p className="text-xs text-muted-foreground text-center">
+        Press Cmd/Ctrl + Enter to submit
+      </p>
     </div>
   );
 }
