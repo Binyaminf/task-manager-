@@ -1,16 +1,31 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+export interface AIAnalysisDetail {
+  value: string;
+  confidence: number;
+  reason: string;
+}
+
+export interface AIAnalysisDetails {
+  priority?: AIAnalysisDetail;
+  category?: AIAnalysisDetail;
+  dueDate?: AIAnalysisDetail;
+  duration?: AIAnalysisDetail;
+  [key: string]: AIAnalysisDetail | undefined;
+}
+
 export interface AIAnalysis {
   confidence: number;
   relatedKeywords: string[];
+  details?: AIAnalysisDetails;
 }
 
 interface ProcessingState {
   step: 'idle' | 'analyzing' | 'creating' | 'complete';
   error: string | null;
+  lastText?: string;
 }
 
 export function useAIProcessing() {
@@ -29,11 +44,11 @@ export function useAIProcessing() {
         description: "Please enter some text",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     setIsProcessing(true);
-    setProcessingState({ step: 'analyzing', error: null });
+    setProcessingState({ step: 'analyzing', error: null, lastText: input.trim() });
 
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -44,7 +59,6 @@ export function useAIProcessing() {
       const currentTime = new Date().toISOString();
       console.log('Sending request to Edge Function with text:', input.trim());
       
-      setProcessingState({ step: 'creating', error: null });
       const { data, error } = await supabase.functions.invoke('process-task-text', {
         body: { 
           text: input.trim(),
@@ -63,14 +77,16 @@ export function useAIProcessing() {
         throw new Error('No data received from Edge Function');
       }
 
+      setProcessingState({ step: 'creating', error: null, lastText: input.trim() });
+
       if (data.type === 'search') {
         toast({
           title: "Search Results",
           description: `Found ${data.results.length} matching tasks`,
         });
+        return false;
       } else if (data.type === 'create') {
         setAnalysis(data.analysis);
-        setProcessingState({ step: 'complete', error: null });
         
         const { error: createError } = await supabase
           .from('tasks')
@@ -81,24 +97,30 @@ export function useAIProcessing() {
             due_date: data.task.dueDate,
             estimated_duration: data.task.estimatedDuration,
             priority: data.task.priority,
-            status: "To Do",
-            category: data.task.category
+            status: data.task.status || "To Do",
+            category: data.task.category,
+            folder_id: null // Default to no folder
           }]);
 
         if (createError) throw createError;
 
+        setProcessingState({ step: 'complete', error: null, lastText: input.trim() });
+        
         toast({
           title: "Success",
           description: "Task created successfully",
         });
         
         return true;
+      } else {
+        throw new Error('Unknown response type from edge function');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing AI request:', error);
       setProcessingState({ 
         step: 'idle', 
-        error: error.message || "Failed to process your request" 
+        error: error.message || "Failed to process your request", 
+        lastText: input.trim()
       });
       toast({
         title: "Error",
@@ -107,8 +129,22 @@ export function useAIProcessing() {
       });
       return false;
     } finally {
-      setIsProcessing(false);
+      // Keep processing state for a moment so user can see the "complete" state
+      if (processingState.step === 'complete') {
+        setTimeout(() => {
+          setIsProcessing(false);
+        }, 1500);
+      } else {
+        setIsProcessing(false);
+      }
     }
+  };
+
+  const retryLastRequest = async () => {
+    if (processingState.lastText) {
+      return processAIRequest(processingState.lastText);
+    }
+    return false;
   };
 
   return {
@@ -116,5 +152,6 @@ export function useAIProcessing() {
     processingState,
     analysis,
     processAIRequest,
+    retryLastRequest
   };
 }

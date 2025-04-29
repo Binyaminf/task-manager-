@@ -1,18 +1,22 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Task } from "@/types/task";
 import { addDays, isPast, parseISO } from "date-fns";
 import { PriorityTask } from "./PriorityTask";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Bell, Sparkles } from "lucide-react";
+import { Bell, Sparkles, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Button } from "../ui/button";
+import { Alert, AlertDescription } from "../ui/alert";
 
 export function PriorityDashboard() {
   const { toast } = useToast();
   const [aiSummary, setAiSummary] = useState<string>("");
+  const [summaryModel, setSummaryModel] = useState<string>("");
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks'],
@@ -69,6 +73,8 @@ export function PriorityDashboard() {
 
   const generateAISummary = async () => {
     setIsLoadingSummary(true);
+    setSummaryError(null);
+    
     try {
       const response = await supabase.functions.invoke('summarize-tasks', {
         body: { tasks: priorityTasks }
@@ -77,12 +83,15 @@ export function PriorityDashboard() {
       if (response.error) throw new Error(response.error.message);
       
       setAiSummary(response.data.summary);
+      setSummaryModel(response.data.model || "AI");
+      
       toast({
         title: "Success",
         description: "AI summary generated successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating AI summary:', error);
+      setSummaryError(error.message || "Failed to generate summary");
       toast({
         title: "Error",
         description: "Failed to generate AI summary",
@@ -103,26 +112,42 @@ export function PriorityDashboard() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bell className="h-4 w-4 text-primary animate-pulse" />
-            <CardTitle className="text-base">Priority Tasks</CardTitle>
+            <CardTitle className="text-base">Priority Tasks ({priorityTasks.length})</CardTitle>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={generateAISummary}
-            disabled={isLoadingSummary}
+            disabled={isLoadingSummary || priorityTasks.length === 0}
             className="h-8 px-2 text-sm"
           >
-            <Sparkles className="h-3 w-3 mr-1" />
-            {isLoadingSummary ? "..." : "AI Summary"}
+            {isLoadingSummary ? (
+              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <Sparkles className="h-3 w-3 mr-1" />
+            )}
+            {isLoadingSummary ? "Generating..." : "AI Summary"}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="px-4 py-2 space-y-2">
-        {aiSummary && (
+        {summaryError && (
+          <Alert variant="destructive" className="mb-3 py-2">
+            <AlertDescription className="text-xs">{summaryError}</AlertDescription>
+          </Alert>
+        )}
+        
+        {aiSummary && !summaryError && (
           <div className="bg-muted/50 p-3 rounded-md text-sm mb-3">
             <p className="whitespace-pre-line text-xs">{aiSummary}</p>
+            {summaryModel && (
+              <p className="text-[10px] text-muted-foreground mt-2">
+                Generated using {summaryModel}
+              </p>
+            )}
           </div>
         )}
+        
         {priorityTasks.map((task) => (
           <PriorityTask key={task.id} task={task} />
         ))}
