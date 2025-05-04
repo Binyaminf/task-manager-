@@ -1,9 +1,11 @@
+
 import { Suspense } from "react";
 import { Task } from "@/types/task";
 import { Header } from "@/components/layout/Header";
 import { PrioritySection } from "@/components/sections/PrioritySection";
 import { AISection } from "@/components/sections/AISection";
 import { TaskSection } from "@/components/sections/TaskSection";
+import { AnalyticsSection } from "@/components/sections/AnalyticsSection";
 import { ErrorBoundary } from "react-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingFallback } from "../common/LoadingFallback";
@@ -51,6 +53,10 @@ export const MainContent = ({
             
             <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
               <AISection onTaskCreated={onTasksChange} />
+            </Suspense>
+
+            <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
+              <AnalyticsSection />
             </Suspense>
             
             <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>
