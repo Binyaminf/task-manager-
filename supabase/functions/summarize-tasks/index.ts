@@ -1,14 +1,17 @@
 
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { HfInference } from 'https://esm.sh/@huggingface/inference@2.3.2'
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Task } from "../../../src/types/task.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json'
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -16,132 +19,124 @@ serve(async (req) => {
   try {
     const { tasks } = await req.json();
     
-    if (!tasks || tasks.length === 0) {
-      return new Response(
-        JSON.stringify({ summary: "No priority tasks found." }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+      throw new Error('No tasks provided or invalid tasks array');
     }
 
-    // Use a more reliable smaller model
-    const MODEL_TO_USE = 'tiiuae/falcon-7b-instruct'; // Fall back to this smaller model
-    const BACKUP_MODEL = 'google/flan-t5-base'; // Second fallback option
+    console.log(`Generating summary for ${tasks.length} tasks`);
+
+    // Generate a simple summary without relying on an external AI service
+    const summary = generateLocalSummary(tasks);
     
-    console.log(`Processing ${tasks.length} tasks for summarization`);
-
-    // Format tasks in a more structured way for better summarization
-    const taskDetails = tasks.map(task => ({
-      summary: task.summary,
-      dueDate: new Date(task.dueDate).toLocaleDateString(),
-      priority: task.priority,
-      status: task.status,
-      category: task.category
-    }));
-
-    // Improved prompt with clearer instructions
-    const prompt = `Summarize the following ${tasks.length} priority tasks concisely:
-      ${tasks.map((task, index) => `
-        ${index + 1}. ${task.summary} 
-           - Due: ${new Date(task.dueDate).toLocaleDateString()}
-           - Priority: ${task.priority}
-           - Category: ${task.category}
-      `).join('\n')}
-      
-      Format your response as:
-      1. A brief overview paragraph (2-3 sentences)
-      2. Key action items in order of priority
-      3. Any notable deadlines
-      
-      Keep your response under 200 words and focus on actionable information.`;
-
-    console.log('Using prompt:', prompt);
-
-    try {
-      const hf = new HfInference(Deno.env.get('HUGGING_FACE_ACCESS_TOKEN'))
-      
-      console.log(`Attempting summarization with ${MODEL_TO_USE}`);
-      
-      const response = await hf.textGeneration({
-        model: MODEL_TO_USE,
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 250,
-          temperature: 0.7,
-          top_p: 0.95,
-        }
-      });
-
-      console.log('Model response received:', response);
-
-      if (!response.generated_text) {
-        throw new Error('Invalid response format from model');
-      }
-
-      return new Response(
-        JSON.stringify({ 
-          summary: response.generated_text.trim(),
-          model: MODEL_TO_USE,
-          taskCount: tasks.length
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } catch (modelError) {
-      console.error(`Error with primary model ${MODEL_TO_USE}:`, modelError);
-      
-      // Fall back to even simpler model
-      try {
-        console.log(`Falling back to ${BACKUP_MODEL}`);
-        const hf = new HfInference(Deno.env.get('HUGGING_FACE_ACCESS_TOKEN'))
-        
-        const backupResponse = await hf.textGeneration({
-          model: BACKUP_MODEL,
-          inputs: prompt.substring(0, 500), // Shorter prompt for simpler model
-          parameters: {
-            max_new_tokens: 150,
-            temperature: 0.5
-          }
-        });
-        
-        return new Response(
-          JSON.stringify({ 
-            summary: backupResponse.generated_text.trim(),
-            model: BACKUP_MODEL,
-            taskCount: tasks.length,
-            fallback: true
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      } catch (backupError) {
-        console.error('Error with backup model:', backupError);
-        
-        // Ultimate fallback - generate a simple summary directly
-        const fallbackSummary = `You have ${tasks.length} priority tasks. ` +
-          `The highest priority items are: ${tasks.slice(0, 3).map(t => t.summary).join(', ')}. ` +
-          `The earliest deadline is ${new Date(tasks.reduce((a, b) => 
-            new Date(a.dueDate) < new Date(b.dueDate) ? a : b
-          ).dueDate).toLocaleDateString()}.`;
-        
-        return new Response(
-          JSON.stringify({ 
-            summary: fallbackSummary,
-            model: 'fallback',
-            taskCount: tasks.length,
-            fallback: true
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
+    return new Response(
+      JSON.stringify({
+        summary,
+        model: "Local Summarization Engine"
+      }),
+      { headers: corsHeaders }
+    );
   } catch (error) {
     console.error('Error in summarize-tasks function:', error);
     return new Response(
       JSON.stringify({ 
         error: error.message,
-        details: 'Check the function logs for more information',
-        summary: "Unable to summarize tasks at this time. Please try again later."
-      }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+        suggestions: [
+          "Check that you're providing a valid array of tasks",
+          "Try with fewer tasks if you're hitting limits",
+          "Check your network connection"
+        ]
+      }),
+      { 
+        status: 500,
+        headers: corsHeaders
+      }
+    );
   }
 });
+
+// Local summarization logic that doesn't rely on external AI services
+function generateLocalSummary(tasks: any[]): string {
+  // Count tasks by priority
+  const priorityCounts = {
+    High: tasks.filter(t => t.priority === 'High').length,
+    Medium: tasks.filter(t => t.priority === 'Medium').length, 
+    Low: tasks.filter(t => t.priority === 'Low').length
+  };
+  
+  // Count tasks by due date urgency
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  const overdueTasks = tasks.filter(t => new Date(t.dueDate) < now).length;
+  const dueTodayTasks = tasks.filter(t => {
+    const dueDate = new Date(t.dueDate);
+    return dueDate >= now && dueDate.getDate() === now.getDate() && 
+           dueDate.getMonth() === now.getMonth() && 
+           dueDate.getFullYear() === now.getFullYear();
+  }).length;
+  
+  const dueTomorrowTasks = tasks.filter(t => {
+    const dueDate = new Date(t.dueDate);
+    return dueDate.getDate() === tomorrow.getDate() && 
+           dueDate.getMonth() === tomorrow.getMonth() && 
+           dueDate.getFullYear() === tomorrow.getFullYear();
+  }).length;
+
+  // Check for common categories
+  const categories = tasks.map(t => t.category);
+  const categoryCounts: Record<string, number> = {};
+  
+  categories.forEach(category => {
+    if (!categoryCounts[category]) {
+      categoryCounts[category] = 1;
+    } else {
+      categoryCounts[category]++;
+    }
+  });
+  
+  // Get the top categories
+  const topCategories = Object.entries(categoryCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2);
+  
+  // Generate summary text
+  let summaryText = `You have ${tasks.length} priority task${tasks.length !== 1 ? 's' : ''}.\n\n`;
+  
+  // Add priority breakdown
+  summaryText += `Priority breakdown: `;
+  if (priorityCounts.High > 0) summaryText += `${priorityCounts.High} high, `;
+  if (priorityCounts.Medium > 0) summaryText += `${priorityCounts.Medium} medium, `;
+  if (priorityCounts.Low > 0) summaryText += `${priorityCounts.Low} low`;
+  summaryText += `.\n\n`;
+  
+  // Add timing information
+  if (overdueTasks > 0) {
+    summaryText += `⚠️ ${overdueTasks} task${overdueTasks !== 1 ? 's are' : ' is'} overdue.\n`;
+  }
+  
+  if (dueTodayTasks > 0) {
+    summaryText += `${dueTodayTasks} task${dueTodayTasks !== 1 ? 's' : ''} due today.\n`;
+  }
+  
+  if (dueTomorrowTasks > 0) {
+    summaryText += `${dueTomorrowTasks} task${dueTomorrowTasks !== 1 ? 's' : ''} due tomorrow.\n`;
+  }
+  
+  // Add category information if relevant
+  if (topCategories.length > 0) {
+    summaryText += `\nMost common categories: ${topCategories.map(c => `${c[0]} (${c[1]})`).join(', ')}.\n`;
+  }
+  
+  // Add specific task summary for the highest priority task
+  const highPriorityTasks = tasks.filter(t => t.priority === 'High');
+  if (highPriorityTasks.length > 0) {
+    const mostUrgent = highPriorityTasks.sort(
+      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    )[0];
+    
+    summaryText += `\nMost urgent task: "${mostUrgent.summary}" (due ${new Date(mostUrgent.dueDate).toLocaleDateString()})`;
+  }
+  
+  return summaryText;
+}

@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.telegram-bot]
 verify_jwt = false
+
+[functions.summarize-tasks]
+verify_jwt = false
