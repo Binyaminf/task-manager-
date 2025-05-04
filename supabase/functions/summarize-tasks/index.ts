@@ -1,7 +1,20 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Task } from "../../../src/types/task.ts";
+
+// Define Task interface locally instead of importing from src/types
+interface Task {
+  id: string;
+  summary: string;
+  description?: string;
+  dueDate: string;
+  estimatedDuration: string;
+  priority: "High" | "Medium" | "Low";
+  status: "To Do" | "In Progress" | "Done";
+  category: string;
+  externalLinks?: string[];
+  folder_id: string | null;
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -55,7 +68,7 @@ serve(async (req) => {
 });
 
 // Local summarization logic that doesn't rely on external AI services
-function generateLocalSummary(tasks: any[]): string {
+function generateLocalSummary(tasks: Task[]): string {
   // Count tasks by priority
   const priorityCounts = {
     High: tasks.filter(t => t.priority === 'High').length,
