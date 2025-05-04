@@ -8,6 +8,21 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+// Task interface
+interface Task {
+  id?: string;
+  user_id?: string;
+  summary: string;
+  description?: string;
+  dueDate: string;
+  estimatedDuration: string;
+  priority: "High" | "Medium" | "Low";
+  status: "To Do" | "In Progress" | "Done";
+  category: string;
+  externalLinks?: string[];
+  folder_id?: string | null;
+}
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === "OPTIONS") {
@@ -188,7 +203,7 @@ serve(async (req) => {
         if (existingUser) {
           if (existingUser.user_id) {
             // User is already verified, just inform them
-            await ctx.reply("You are already verified. You can use commands like 'list tasks' or 'priority overview'.")
+            await ctx.reply("You are already verified. You can use commands like 'list tasks', 'priority overview', or create a new task by simply describing it.")
             return
           }
           
@@ -231,11 +246,12 @@ serve(async (req) => {
       console.log('Help command received from:', ctx.chat.id)
       await ctx.reply(
         "Here are the commands I understand:\n\n" +
+        "• 'create task: [your task description]' - Create a new task\n" +
         "• 'list tasks' or /list - Show your upcoming tasks\n" +
         "• 'priority overview' or /priority - Show your task priorities\n" +
         "• /start - Get a new verification code\n" +
         "• /help - Show this help message\n\n" +
-        "You can also simply chat with me using natural language and I'll try to assist you."
+        "You can also simply describe a task and I'll try to create it for you."
       )
     })
 
@@ -251,16 +267,28 @@ serve(async (req) => {
       await handlePriorityOverview(ctx)
     })
 
+    // NEW: Add specific task creation command
+    bot.command("create", async (ctx) => {
+      console.log('Create command received from:', ctx.chat.id)
+      const text = ctx.message?.text?.replace('/create', '').trim();
+      if (!text) {
+        await ctx.reply("Please provide a description for your task. For example: /create Finish project report by Friday");
+        return;
+      }
+      await handleTaskCreation(ctx, text);
+    });
+
     // Handle text messages for commands without /
     bot.hears("help", async (ctx) => {
       console.log('Help text received from:', ctx.chat.id)
       await ctx.reply(
         "Here are the commands I understand:\n\n" +
+        "• 'create task: [your task description]' - Create a new task\n" +
         "• 'list tasks' or /list - Show your upcoming tasks\n" +
         "• 'priority overview' or /priority - Show your task priorities\n" +
         "• /start - Get a new verification code\n" +
         "• /help - Show this help message\n\n" +
-        "You can also simply chat with me using natural language and I'll try to assist you."
+        "You can also simply describe a task and I'll try to create it for you."
       )
     })
 
@@ -276,6 +304,13 @@ serve(async (req) => {
       await handlePriorityOverview(ctx)
     })
     
+    // NEW: Specific task creation pattern
+    bot.hears(/create task:(.+)/i, async (ctx) => {
+      console.log('Create task pattern matched');
+      const text = ctx.match[1].trim();
+      await handleTaskCreation(ctx, text);
+    });
+    
     // Fix: Improved AI-powered free text handling
     bot.on("message:text", async (ctx) => {
       if (!ctx.message.text) return
@@ -283,19 +318,174 @@ serve(async (req) => {
       const text = ctx.message.text.toLowerCase()
       console.log('Processing text message:', text)
       
-      // Skip if message was already handled by command handlers
+      // Skip if message was already handled by command handlers or patterns
       if (
         text.startsWith('/') || 
         text === "help" || 
         text === "list tasks" || 
-        text === "priority overview"
+        text === "priority overview" ||
+        text.toLowerCase().startsWith('create task:')
       ) {
         return
       }
       
-      // Process as free text query
+      // NEW: Check if this looks like a task description
+      if (isProbablyTaskDescription(text)) {
+        await ctx.reply("This looks like a task. I'll try to create it for you...");
+        await handleTaskCreation(ctx, ctx.message.text);
+        return;
+      }
+      
+      // Process as general free text query
       await handleFreeTextQuery(ctx)
     })
+
+    // NEW: Simple heuristic to detect if text is likely a task description
+    function isProbablyTaskDescription(text: string): boolean {
+      // Check if text contains task-related keywords
+      const taskKeywords = [
+        'todo', 'to-do', 'to do', 'task', 'finish', 'complete', 'work on', 'create', 
+        'prepare', 'write', 'send', 'review', 'check', 'call', 'email', 'meeting',
+        'appointment', 'deadline', 'schedule', 'remind', 'remember'
+      ];
+      
+      // Check if text contains time indicators
+      const timeKeywords = [
+        'today', 'tomorrow', 'next week', 'monday', 'tuesday', 'wednesday', 'thursday',
+        'friday', 'saturday', 'sunday', 'morning', 'afternoon', 'evening', 'night',
+        'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august',
+        'september', 'october', 'november', 'december'
+      ];
+      
+      // Check for priority indicators
+      const priorityKeywords = ['urgent', 'important', 'asap', 'critical', 'high priority'];
+      
+      // Check if text contains any of the keywords
+      const hasTaskKeyword = taskKeywords.some(keyword => text.includes(keyword));
+      const hasTimeKeyword = timeKeywords.some(keyword => text.includes(keyword));
+      const hasPriorityKeyword = priorityKeywords.some(keyword => text.includes(keyword));
+      
+      // Simple length check - task descriptions are usually not too short or too long
+      const appropriateLength = text.length > 10 && text.length < 200;
+      
+      // Determine if this is likely a task
+      return appropriateLength && (hasTaskKeyword || (hasTimeKeyword && !text.includes('?')));
+    }
+
+    // NEW: Handle task creation using process-task-text edge function
+    async function handleTaskCreation(ctx: any, taskDescription: string) {
+      const chatId = ctx.chat.id.toString()
+      
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      )
+
+      try {
+        // Check if the user is verified
+        const { data: telegramUser, error: userError } = await supabase
+          .from('telegram_users')
+          .select('*')
+          .eq('telegram_id', chatId)
+          .maybeSingle()
+
+        if (userError) {
+          console.error('Error fetching telegram user:', userError)
+          await ctx.reply("Sorry, there was an error checking your verification status. Please try again.")
+          return
+        }
+
+        if (!telegramUser?.user_id) {
+          await ctx.reply("Your Telegram account is not linked yet. Please use the /start command to get a verification code.")
+          return
+        }
+        
+        await ctx.reply("Processing your task...");
+
+        // Call the process-task-text edge function
+        const { data: processedTask, error: processError } = await supabase.functions.invoke('process-task-text', {
+          body: { 
+            text: taskDescription,
+            currentTime: new Date().toISOString()
+          }
+        })
+
+        if (processError || !processedTask) {
+          console.error('Error processing task:', processError)
+          await ctx.reply("Sorry, I couldn't process your task. Please try again with a clearer description.")
+          return
+        }
+        
+        console.log('Processed task:', JSON.stringify(processedTask, null, 2))
+
+        if (processedTask.type !== 'create') {
+          await ctx.reply("I couldn't understand this as a task. Please try again with a clearer description.")
+          return
+        }
+
+        // Extract the task data from the processed response
+        const taskData = processedTask.task;
+        
+        // Format the confidence information
+        const confidenceDetails = processedTask.analysis?.details || {};
+        
+        // Create the task in the database
+        const { data: createdTask, error: createError } = await supabase
+          .from('tasks')
+          .insert([{
+            user_id: telegramUser.user_id,
+            summary: taskData.summary,
+            description: taskData.description,
+            due_date: taskData.dueDate,
+            estimated_duration: taskData.estimatedDuration,
+            priority: taskData.priority,
+            status: taskData.status || "To Do",
+            category: taskData.category,
+            folder_id: null // Default to no folder
+          }])
+          .select()
+          .single()
+
+        if (createError) {
+          console.error('Error creating task:', createError)
+          await ctx.reply("Sorry, there was an error creating your task. Please try again.")
+          return
+        }
+
+        // Send confirmation with task details
+        let response = "✅ Task created successfully!\n\n";
+        response += `*${taskData.summary}*\n\n`;
+        response += `📅 Due: ${new Date(taskData.dueDate).toLocaleDateString()}\n`;
+        response += `⏱️ Duration: ${taskData.estimatedDuration}\n`;
+        response += `🔔 Priority: ${taskData.priority}\n`;
+        response += `📁 Category: ${taskData.category}\n`;
+        
+        // Include confidence information if available
+        if (Object.keys(confidenceDetails).length > 0) {
+          response += "\nI've made some educated guesses based on your description:";
+          
+          if (confidenceDetails.priority) {
+            response += `\n• Priority (${Math.round(confidenceDetails.priority.confidence * 100)}% confident): ${confidenceDetails.priority.value}`;
+          }
+          
+          if (confidenceDetails.dueDate) {
+            response += `\n• Due date (${Math.round(confidenceDetails.dueDate.confidence * 100)}% confident): ${confidenceDetails.dueDate.value}`;
+          }
+          
+          if (confidenceDetails.category) {
+            response += `\n• Category (${Math.round(confidenceDetails.category.confidence * 100)}% confident): ${confidenceDetails.category.value}`;
+          }
+          
+          response += "\n\nYou can update these details in the web app if needed.";
+        }
+
+        await ctx.reply(response, { parse_mode: 'Markdown' });
+      } catch (error) {
+        console.error('Unexpected error in task creation:', error)
+        await ctx.reply("An unexpected error occurred. Please try again later.")
+      }
+    }
 
     // Extracted common list tasks functionality
     async function handleListTasks(ctx) {
@@ -341,7 +531,7 @@ serve(async (req) => {
         }
 
         if (!tasks?.length) {
-          await ctx.reply("You don't have any tasks yet.")
+          await ctx.reply("You don't have any tasks yet. Try creating one with 'create task: [description]'")
           return
         }
 
@@ -399,7 +589,7 @@ serve(async (req) => {
         }
 
         if (!tasks?.length) {
-          await ctx.reply("You don't have any active tasks yet.")
+          await ctx.reply("You don't have any active tasks yet. Try creating one with 'create task: [description]'")
           return
         }
 
@@ -498,7 +688,7 @@ serve(async (req) => {
         const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
         if (!openaiApiKey) {
           console.log('No OpenAI API key found, using fallback response')
-          await ctx.reply("I understand you're trying to ask me something, but I'm not sure how to help with that specific request. Try using one of my commands like 'list tasks' or 'priority overview' instead.")
+          await ctx.reply("I understand you're trying to ask me something, but I'm not sure how to help with that specific request. Try using one of my commands like 'list tasks', 'priority overview', or try creating a task by saying 'create task: [description]'.")
           return
         }
 
@@ -529,7 +719,7 @@ serve(async (req) => {
                 role: "system", 
                 content: `You are a helpful task management assistant in a Telegram bot.
                 You help users understand their tasks and priorities. Keep responses brief and conversational.
-                Available commands: 'list tasks', 'priority overview', '/start', '/help'.
+                Available commands: 'create task: [description]', 'list tasks', 'priority overview', '/start', '/help'.
                 ${taskContext}`
               },
               { role: "user", content: userMessage }
