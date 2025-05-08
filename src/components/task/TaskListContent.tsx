@@ -1,9 +1,11 @@
+
 import { Task } from "@/types/task";
 import { TaskGrid } from "./TaskGrid";
 import { TaskListView } from "./TaskListView";
 import { DragEndEvent } from "@dnd-kit/core";
 import { ErrorBoundary } from "react-error-boundary";
 import { TaskSkeleton, TaskSkeletonGrid } from "../common/TaskSkeleton";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TaskListContentProps {
   tasks: Task[];
@@ -26,6 +28,8 @@ export function TaskListContent({
   onDragEnd,
   onTaskSelect,
 }: TaskListContentProps) {
+  const isMobile = useIsMobile();
+
   if (isLoading) {
     return viewMode === 'grid' ? <TaskSkeletonGrid /> : <TaskSkeleton />;
   }
@@ -41,14 +45,16 @@ export function TaskListContent({
   return (
     <ErrorBoundary fallback={<div>Something went wrong</div>}>
       {viewMode === 'grid' ? (
-        <TaskGrid
-          tasks={tasks}
-          onTaskClick={onTaskClick}
-          onTaskDelete={onTaskDelete}
-          onDragEnd={onDragEnd}
-          selectedTasks={selectedTasks}
-          onTaskSelect={onTaskSelect}
-        />
+        <div className={isMobile ? "-mx-2 px-2" : ""}>
+          <TaskGrid
+            tasks={tasks}
+            onTaskClick={onTaskClick}
+            onTaskDelete={onTaskDelete}
+            onDragEnd={onDragEnd}
+            selectedTasks={selectedTasks}
+            onTaskSelect={onTaskSelect}
+          />
+        </div>
       ) : (
         <TaskListView
           tasks={tasks}

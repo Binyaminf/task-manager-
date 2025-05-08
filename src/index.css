@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -91,6 +92,18 @@
 
   body {
     @apply bg-background text-foreground;
+    /* Prevent content from being hidden under the browser chrome on mobile */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Add default tap highlighting for mobile */
+  a, button, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent text zooming on mobile */
+  html {
+    -webkit-text-size-adjust: 100%;
   }
 }
 
@@ -109,5 +122,29 @@
   
   .text-gradient-primary {
     @apply bg-gradient-to-br from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent;
+  }
+
+  /* Better touch areas for mobile */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+
+  /* Hide scrollbars but maintain functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+  
+  /* Improved mobile spacing utilities */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
+  
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 1rem);
   }
 }

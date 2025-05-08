@@ -9,6 +9,7 @@ import { AnalyticsSection } from "@/components/sections/AnalyticsSection";
 import { ErrorBoundary } from "react-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingFallback } from "../common/LoadingFallback";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MainContentProps {
   session: any;
@@ -35,6 +36,8 @@ export const MainContent = ({
   onViewModeChange,
   onFolderSelect,
 }: MainContentProps) => {
+  const isMobile = useIsMobile();
+
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <ErrorBoundary fallback={<div>Something went wrong</div>}>
@@ -47,16 +50,19 @@ export const MainContent = ({
 
         <main className="container mx-auto py-2 px-2 md:py-6 md:px-4 lg:py-8 lg:px-6">
           <div className="space-y-4 md:space-y-6 lg:space-y-8">
-            <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
-              <PrioritySection />
-            </Suspense>
+            {/* Mobile-optimized layout with conditional rendering based on screen size */}
+            <div className={isMobile ? "space-y-4" : "md:grid md:grid-cols-2 md:gap-4 lg:gap-6"}>
+              <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
+                <PrioritySection />
+              </Suspense>
+              
+              <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
+                <AnalyticsSection />
+              </Suspense>
+            </div>
             
             <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
               <AISection onTaskCreated={onTasksChange} />
-            </Suspense>
-
-            <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
-              <AnalyticsSection />
             </Suspense>
             
             <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>

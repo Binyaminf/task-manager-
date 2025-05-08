@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { TaskHeader } from "@/components/TaskHeader";
 import { FolderList } from "@/components/FolderList";
@@ -8,6 +9,7 @@ import { Button } from "../ui/button";
 import { Calendar, List, ChevronDown, ChevronUp, LayoutGrid } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TaskSectionProps {
   tasks: Task[];
@@ -31,25 +33,26 @@ export function TaskSection({
   const [taskViewMode, setTaskViewMode] = useState<'grid' | 'list'>('grid');
   const [isFoldersExpanded, setIsFoldersExpanded] = useState(true);
   const [currentView, setCurrentView] = useState<'list' | 'calendar'>(viewMode);
+  const isMobile = useIsMobile();
 
   return (
     <section className="bg-white rounded-lg shadow-sm p-2 sm:p-6">
       <div className="flex flex-col gap-4 mb-4 sm:mb-6">
         <TaskHeader onNewTask={onNewTask} />
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className={`flex ${isMobile ? "flex-col" : "sm:flex-row sm:items-center"} gap-4`}>
           <Tabs 
             value={currentView} 
             onValueChange={(value) => setCurrentView(value as 'list' | 'calendar')} 
-            className="w-full sm:w-[400px]"
+            className="w-full sm:w-auto"
           >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="list" className="flex items-center gap-2 h-10">
-                <List className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span className="hidden sm:inline">List View</span>
+                <List className="h-4 w-4" />
+                <span>List</span>
               </TabsTrigger>
               <TabsTrigger value="calendar" className="flex items-center gap-2 h-10">
-                <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span className="hidden sm:inline">Calendar View</span>
+                <Calendar className="h-4 w-4" />
+                <span>Calendar</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -59,19 +62,19 @@ export function TaskSection({
                 variant={taskViewMode === 'grid' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTaskViewMode('grid')}
-                className="h-10 px-4"
+                className="flex-1 sm:flex-none h-10 px-4"
               >
-                <LayoutGrid className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span className="ml-2 hidden sm:inline">Grid</span>
+                <LayoutGrid className="h-4 w-4 mr-2" />
+                Grid
               </Button>
               <Button
                 variant={taskViewMode === 'list' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTaskViewMode('list')}
-                className="h-10 px-4"
+                className="flex-1 sm:flex-none h-10 px-4"
               >
-                <List className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span className="ml-2 hidden sm:inline">List</span>
+                <List className="h-4 w-4 mr-2" />
+                List
               </Button>
             </div>
           )}
@@ -110,7 +113,9 @@ export function TaskSection({
             isLoading={isLoading}
           />
         ) : (
-          <TaskCalendar tasks={tasks} />
+          <div className={isMobile ? "overflow-x-auto -mx-2 px-2" : ""}>
+            <TaskCalendar tasks={tasks} />
+          </div>
         )}
       </div>
     </section>
