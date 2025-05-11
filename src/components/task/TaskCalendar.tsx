@@ -1,193 +1,156 @@
+
 import { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Task } from "@/types/task";
-import { format } from "date-fns";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Check, Clock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { getPriorityColor } from "./TaskColors";
 
 interface TaskCalendarProps {
   tasks: Task[];
+  onTaskClick: (task: Task) => void;
 }
 
-export function TaskCalendar({ tasks }: TaskCalendarProps) {
+export function TaskCalendar({ tasks, onTaskClick }: TaskCalendarProps) {
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const isMobile = useIsMobile();
+  const { toast } = useToast();
 
-  // Group tasks by date
+  // Process tasks for the calendar
   const tasksByDate = tasks.reduce((acc, task) => {
-    const dateKey = format(new Date(task.dueDate), 'yyyy-MM-dd');
-    if (!acc[dateKey]) {
-      acc[dateKey] = [];
+    if (!task.dueDate) return acc;
+    
+    const dueDate = task.dueDate.split('T')[0]; // Extract just the date part
+    if (!acc[dueDate]) {
+      acc[dueDate] = [];
     }
-    acc[dateKey].push(task);
+    acc[dueDate].push(task);
     return acc;
   }, {} as Record<string, Task[]>);
 
-  const getStatusColor = (status: Task['status']) => {
-    switch (status) {
-      case 'Done':
-        return 'bg-green-500';
-      case 'In Progress':
-        return 'bg-yellow-500';
-      case 'To Do':
-        return 'bg-blue-500';
-      default:
-        return 'bg-gray-500';
-    }
+  // Function to highlight dates with tasks
+  const isDayWithTask = (day: Date): boolean => {
+    const dateStr = day.toISOString().split('T')[0];
+    return !!tasksByDate[dateStr];
   };
 
-  const getPriorityColor = (priority: Task['priority']) => {
-    switch (priority) {
-      case 'High':
-        return 'bg-red-500';
-      case 'Medium':
-        return 'bg-yellow-500';
-      case 'Low':
-        return 'bg-green-500';
-      default:
-        return 'bg-gray-500';
-    }
+  // Function to get the highest priority for a date
+  const getHighestPriority = (day: Date): Task['priority'] | null => {
+    const dateStr = day.toISOString().split('T')[0];
+    const tasksForDay = tasksByDate[dateStr];
+    
+    if (!tasksForDay || tasksForDay.length === 0) return null;
+    
+    // Get the highest priority (High > Medium > Low)
+    const priorityOrder = { "High": 3, "Medium": 2, "Low": 1 };
+    return tasksForDay.reduce((highest, task) => {
+      return priorityOrder[task.priority] > priorityOrder[highest.priority] ? task : highest;
+    }, tasksForDay[0]).priority;
   };
 
-  const TaskList = ({ tasks }: { tasks: Task[] }) => (
-    <div className="space-y-2">
-      {tasks.map((task) => (
-        <div 
-          key={task.id} 
-          className="p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Badge className={cn("w-2 h-2 rounded-full", getPriorityColor(task.priority))} />
-              <div className="font-medium">{task.summary}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              {task.status === 'Done' && (
-                <Check className="h-4 w-4 text-green-500" />
-              )}
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">
-                {task.estimatedDuration}
-              </span>
-            </div>
-          </div>
-          {task.description && (
-            <div className="text-sm text-muted-foreground mt-2 line-clamp-2">
-              {task.description}
-            </div>
-          )}
-          <div className="flex items-center gap-2 mt-2">
-            <Badge 
-              variant="secondary" 
-              className={cn("text-xs", getStatusColor(task.status))}
-            >
-              {task.status}
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              {task.category}
-            </Badge>
-          </div>
+  // Function to render tasks for the selected date
+  const renderTasksForSelectedDate = () => {
+    if (!date) return null;
+    
+    const dateStr = date.toISOString().split('T')[0];
+    const tasksForDay = tasksByDate[dateStr];
+    
+    if (!tasksForDay || tasksForDay.length === 0) {
+      return (
+        <div className="text-center py-4 text-muted-foreground">
+          No tasks for this date
         </div>
-      ))}
-    </div>
-  );
-
-  // Custom day render function
-  const renderDay = (day: Date) => {
-    const dateKey = format(day, 'yyyy-MM-dd');
-    const dayTasks = tasksByDate[dateKey] || [];
-
-    if (dayTasks.length === 0) return null;
-
-    const hasCompletedTasks = dayTasks.some(task => task.status === 'Done');
-    const hasHighPriorityTasks = dayTasks.some(task => task.priority === 'High');
-
-    const content = (
-      <div className="absolute bottom-1 right-1 flex gap-1">
-        <Badge 
-          variant="secondary" 
-          className={cn(
-            "h-4 w-4 p-0 flex items-center justify-center text-xs cursor-pointer",
-            hasHighPriorityTasks ? 'bg-red-100 text-red-600' :
-            hasCompletedTasks ? 'bg-green-100 text-green-600' :
-            'bg-blue-100 text-blue-600'
-          )}
-        >
-          {dayTasks.length}
-        </Badge>
-        {hasCompletedTasks && (
-          <Check className="h-3 w-3 text-green-500" />
-        )}
+      );
+    }
+    
+    return (
+      <div className="space-y-2 max-h-80 overflow-y-auto">
+        {tasksForDay.map(task => (
+          <Card 
+            key={task.id}
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => onTaskClick(task)}
+          >
+            <CardContent className="p-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="font-medium">{task.summary}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {task.estimatedDuration && `${task.estimatedDuration} • `}
+                    {task.category}
+                  </div>
+                </div>
+                <Badge style={{ backgroundColor: getPriorityColor(task.priority) }}>
+                  {task.priority}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
-    );
-
-    return isMobile ? (
-      <div onClick={(e) => {
-        e.stopPropagation();
-        setSelectedDate(dateKey);
-      }}>
-        {content}
-      </div>
-    ) : (
-      <HoverCard>
-        <HoverCardTrigger asChild>
-          <div>{content}</div>
-        </HoverCardTrigger>
-        <HoverCardContent className="w-80 p-0">
-          <div className="p-4 space-y-2">
-            <h4 className="font-semibold">
-              {format(day, 'MMMM d, yyyy')}
-            </h4>
-            <TaskList tasks={dayTasks} />
-          </div>
-        </HoverCardContent>
-      </HoverCard>
     );
   };
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow-sm">
-      <Calendar
-        mode="single"
-        selected={date}
-        onSelect={setDate}
-        className="rounded-md border w-full"
-        components={{
-          DayContent: ({ date }) => (
-            <div className="relative w-full h-full">
-              <div>{format(date, 'd')}</div>
-              {renderDay(date)}
-            </div>
-          ),
-        }}
-      />
-
-      <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Tasks for {selectedDate ? format(new Date(selectedDate), 'PPP') : ''}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedDate && tasksByDate[selectedDate] && (
-            <TaskList tasks={tasksByDate[selectedDate]} />
-          )}
-        </DialogContent>
-      </Dialog>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={setDate}
+          className="border rounded-md"
+          modifiersStyles={{
+            selected: { backgroundColor: "var(--accent)" },
+          }}
+          modifiers={{
+            hasTask: (day) => isDayWithTask(day),
+            highPriority: (day) => getHighestPriority(day) === "High",
+            mediumPriority: (day) => getHighestPriority(day) === "Medium",
+            lowPriority: (day) => getHighestPriority(day) === "Low",
+          }}
+          styles={{
+            hasTask: { 
+              textDecoration: "underline" 
+            },
+            highPriority: { 
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              fontWeight: "bold" 
+            },
+            mediumPriority: { 
+              backgroundColor: "rgba(249, 115, 22, 0.1)" 
+            },
+            lowPriority: { 
+              backgroundColor: "rgba(34, 197, 94, 0.1)" 
+            }
+          }}
+        />
+        <div className="mt-4 flex justify-center space-x-4">
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
+            <span className="text-xs">High</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-orange-500 rounded-full mr-1"></div>
+            <span className="text-xs">Medium</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
+            <span className="text-xs">Low</span>
+          </div>
+        </div>
+      </div>
+      
+      <div>
+        <h3 className="font-medium mb-2">
+          Tasks for {date?.toLocaleDateString(undefined, { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}
+        </h3>
+        {renderTasksForSelectedDate()}
+      </div>
     </div>
   );
 }

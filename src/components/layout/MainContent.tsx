@@ -1,30 +1,25 @@
-
-import { Suspense } from "react";
-import { Task } from "@/types/task";
 import { Header } from "@/components/layout/Header";
-import { PrioritySection } from "@/components/sections/PrioritySection";
-import { AISection } from "@/components/sections/AISection";
+import { FolderList } from "@/components/layout/FolderList";
 import { TaskSection } from "@/components/sections/TaskSection";
+import { PrioritySection } from "@/components/sections/PrioritySection";
 import { AnalyticsSection } from "@/components/sections/AnalyticsSection";
-import { ErrorBoundary } from "react-error-boundary";
-import { Skeleton } from "@/components/ui/skeleton";
-import { LoadingFallback } from "../common/LoadingFallback";
+import { AISection } from "@/components/sections/AISection";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MainContentProps {
   session: any;
-  tasks: Task[];
-  viewMode: 'list' | 'calendar';
+  tasks: any[];
+  viewMode: 'grid' | 'list' | 'calendar';
   selectedFolder: string | null;
   isLoading: boolean;
   onSignOut: () => void;
-  onNewTask: (task: Partial<Task>) => void;
-  onTasksChange: () => void;
-  onViewModeChange: (mode: 'list' | 'calendar') => void;
+  onNewTask: (task: any) => void;
+  onTasksChange?: () => void;
+  onViewModeChange: (mode: 'grid' | 'list' | 'calendar') => void;
   onFolderSelect: (folderId: string | null) => void;
 }
 
-export const MainContent = ({
+export function MainContent({
   session,
   tasks,
   viewMode,
@@ -35,50 +30,50 @@ export const MainContent = ({
   onTasksChange,
   onViewModeChange,
   onFolderSelect,
-}: MainContentProps) => {
+}: MainContentProps) {
   const isMobile = useIsMobile();
 
   return (
-    <div className="min-h-screen bg-background transition-colors duration-300">
-      <ErrorBoundary fallback={<div>Something went wrong</div>}>
-        <Header
-          userEmail={session.user.email}
-          viewMode={viewMode}
-          onViewModeChange={onViewModeChange}
-          onSignOut={onSignOut}
-        />
-
-        <main className="container mx-auto py-2 px-2 md:py-6 md:px-4 lg:py-8 lg:px-6">
-          <div className="space-y-4 md:space-y-6 lg:space-y-8">
-            {/* Mobile-optimized layout with conditional rendering based on screen size */}
-            <div className={isMobile ? "space-y-4" : "md:grid md:grid-cols-2 md:gap-4 lg:gap-6"}>
-              <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
-                <PrioritySection />
-              </Suspense>
-              
-              <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
-                <AnalyticsSection />
-              </Suspense>
-            </div>
-            
-            <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
-              <AISection onTaskCreated={onTasksChange} />
-            </Suspense>
-            
-            <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>
-              <TaskSection
-                tasks={tasks}
-                viewMode={viewMode}
+    <div className="min-h-screen bg-gray-50">
+      <Header user={session?.user} onSignOut={onSignOut} />
+      
+      <div className="container mx-auto p-4 md:p-6">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          {/* Sidebar - folders */}
+          <div className={isMobile ? "col-span-1" : "col-span-3 lg:col-span-2"}>
+            <section className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+              <FolderList 
                 selectedFolder={selectedFolder}
-                onNewTask={onNewTask}
-                onTasksChange={onTasksChange}
                 onFolderSelect={onFolderSelect}
-                isLoading={isLoading}
               />
-            </Suspense>
+            </section>
           </div>
-        </main>
-      </ErrorBoundary>
+
+          {/* Main content area */}
+          <div className={`${isMobile ? "col-span-1" : "col-span-9 lg:col-span-7"}`}>
+            <TaskSection
+              tasks={tasks}
+              onNewTask={onNewTask}
+              viewMode={viewMode}
+              onViewModeChange={onViewModeChange}
+              onTasksChange={onTasksChange}
+              selectedFolder={selectedFolder}
+              isLoading={isLoading}
+            />
+          </div>
+
+          {/* Right sidebar */}
+          {!isMobile && (
+            <div className="hidden lg:block lg:col-span-3">
+              <div className="space-y-6">
+                <PrioritySection tasks={tasks} />
+                <AnalyticsSection />
+                <AISection />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
-};
+}

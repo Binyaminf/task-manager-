@@ -15,7 +15,7 @@ const Index = () => {
   const queryClient = useQueryClient();
   const [session, setSession] = useState(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'calendar'>('grid');
   const [authError, setAuthError] = useState<string | null>(null);
 
   const { data: tasks = [], isLoading, error } = useTaskData(session?.user?.id, selectedFolder);

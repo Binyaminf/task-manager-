@@ -1,13 +1,16 @@
+
 import { Task } from "@/types/task";
 import { TaskList } from "../TaskList";
+import { TaskCalendar } from "./TaskCalendar";
 import { useState } from "react";
 import { SortField, SortOrder } from "../TaskSorting";
+import { useTaskOperations } from "@/hooks/task/useTaskOperations";
 
 interface TaskListContainerProps {
   tasks: Task[];
   onTasksChange?: () => void;
   selectedFolder: string | null;
-  viewMode?: 'grid' | 'list';
+  viewMode?: 'grid' | 'list' | 'calendar';
   isLoading?: boolean;
 }
 
@@ -24,13 +27,23 @@ export function TaskListContainer({
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const { handleTaskClick } = useTaskOperations(onTasksChange);
+
+  if (viewMode === 'calendar') {
+    return (
+      <TaskCalendar
+        tasks={tasks}
+        onTaskClick={handleTaskClick}
+      />
+    );
+  }
 
   return (
     <TaskList
       tasks={tasks}
       onTasksChange={onTasksChange}
       selectedFolder={selectedFolder}
-      viewMode={viewMode}
+      viewMode={viewMode as 'grid' | 'list'}
       isLoading={isLoading}
       sortField={sortField}
       sortOrder={sortOrder}
