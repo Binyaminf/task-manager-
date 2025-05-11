@@ -1,5 +1,6 @@
+
 import { Header } from "@/components/layout/Header";
-import { FolderList } from "@/components/layout/FolderList";
+import { FolderList } from "@/components/FolderList";
 import { TaskSection } from "@/components/sections/TaskSection";
 import { PrioritySection } from "@/components/sections/PrioritySection";
 import { AnalyticsSection } from "@/components/sections/AnalyticsSection";
@@ -35,7 +36,12 @@ export function MainContent({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header user={session?.user} onSignOut={onSignOut} />
+      <Header 
+        userEmail={session?.user?.email} 
+        viewMode={viewMode === 'calendar' ? 'calendar' : 'list'} 
+        onViewModeChange={onViewModeChange}
+        onSignOut={onSignOut} 
+      />
       
       <div className="container mx-auto p-4 md:p-6">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -68,7 +74,7 @@ export function MainContent({
               <div className="space-y-6">
                 <PrioritySection tasks={tasks} />
                 <AnalyticsSection />
-                <AISection />
+                <AISection onTaskCreated={onTasksChange || (() => {})} />
               </div>
             </div>
           )}

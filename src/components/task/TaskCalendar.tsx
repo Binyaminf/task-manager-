@@ -103,13 +103,13 @@ export function TaskCalendar({ tasks, onTaskClick }: TaskCalendarProps) {
             selected: { backgroundColor: "var(--accent)" },
           }}
           modifiers={{
-            hasTask: (day) => isDayWithTask(day),
+            highlightWithTasks: (day) => isDayWithTask(day),
             highPriority: (day) => getHighestPriority(day) === "High",
             mediumPriority: (day) => getHighestPriority(day) === "Medium",
             lowPriority: (day) => getHighestPriority(day) === "Low",
           }}
           styles={{
-            hasTask: { 
+            highlightWithTasks: { 
               textDecoration: "underline" 
             },
             highPriority: { 

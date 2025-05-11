@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Calendar as CalendarIcon, List, Menu, Settings as SettingsIcon } from "lucide-react";
 import {
@@ -13,7 +14,7 @@ import { Link } from "react-router-dom";
 interface HeaderProps {
   userEmail?: string;
   viewMode: 'list' | 'calendar';
-  onViewModeChange: (mode: 'list' | 'calendar') => void;
+  onViewModeChange: (mode: 'list' | 'calendar' | 'grid') => void;
   onSignOut: () => void;
 }
 
