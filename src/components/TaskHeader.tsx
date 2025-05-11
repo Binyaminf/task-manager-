@@ -64,6 +64,12 @@ export function TaskHeader({ onNewTask }: TaskHeaderProps) {
     }
   };
 
+  // Convert onNewTask to async function for TaskTemplates compatibility
+  const handleCreateTemplateTask = async (task: Partial<Task>) => {
+    onNewTask(task);
+    return Promise.resolve();
+  };
+
   return (
     <div className="flex justify-between items-center">
       <h2 className="text-xl font-semibold">Tasks</h2>
@@ -112,12 +118,11 @@ export function TaskHeader({ onNewTask }: TaskHeaderProps) {
         )}
       </div>
 
-      {showNewTaskForm && (
-        <TaskForm
-          onSubmit={handleAddTask}
-          onCancel={() => setShowNewTaskForm(false)}
-        />
-      )}
+      <TaskForm
+        open={showNewTaskForm}
+        onOpenChange={setShowNewTaskForm}
+        onSubmit={handleAddTask}
+      />
 
       <BatchTaskCreation
         open={showBatchCreation}
@@ -128,7 +133,7 @@ export function TaskHeader({ onNewTask }: TaskHeaderProps) {
       <TaskTemplates
         open={showTemplates}
         onClose={() => setShowTemplates(false)}
-        onCreateTask={onNewTask}
+        onCreateTask={handleCreateTemplateTask}
       />
     </div>
   );
