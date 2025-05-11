@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Task } from "@/types/task";
@@ -111,17 +110,12 @@ export function TaskCalendar({ tasks, onTaskClick }: TaskCalendarProps) {
           styles={{
             day: {
               textDecoration: isDayWithTask(date || new Date()) ? "underline" : "none"
-            },
-            highPriority: { 
-              backgroundColor: "rgba(239, 68, 68, 0.1)",
-              fontWeight: "bold" 
-            },
-            mediumPriority: { 
-              backgroundColor: "rgba(249, 115, 22, 0.1)" 
-            },
-            lowPriority: { 
-              backgroundColor: "rgba(34, 197, 94, 0.1)" 
             }
+          }}
+          classNames={{
+            high_priority: "bg-red-100 font-bold", 
+            medium_priority: "bg-orange-100", 
+            low_priority: "bg-green-100"
           }}
         />
         <div className="mt-4 flex justify-center space-x-4">

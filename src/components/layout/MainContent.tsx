@@ -49,6 +49,7 @@ export function MainContent({
           <div className={isMobile ? "col-span-1" : "col-span-3 lg:col-span-2"}>
             <section className="bg-white rounded-lg shadow-sm p-4 md:p-6">
               <FolderList 
+                selectedFolder={selectedFolder}
                 onFolderSelect={onFolderSelect}
               />
             </section>
