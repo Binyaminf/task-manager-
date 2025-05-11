@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Task } from "@/types/task";
 import { useToast } from "@/hooks/use-toast";
@@ -41,7 +42,7 @@ const Index = () => {
 
     const supabaseTask = {
       user_id: session.user.id,
-      folder_id: selectedFolder,
+      folder_id: taskData.folder_id || selectedFolder,
       summary: taskData.summary,
       description: taskData.description,
       due_date: taskData.dueDate,
