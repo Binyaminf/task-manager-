@@ -29,8 +29,12 @@ import {
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 
-export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: string | null) => void }) {
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+interface FolderListProps {
+  selectedFolder: string | null;
+  onFolderSelect: (folderId: string | null) => void;
+}
+
+export function FolderList({ selectedFolder, onFolderSelect }: FolderListProps) {
   const [folderToDelete, setFolderToDelete] = useState<FolderType | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -102,7 +106,6 @@ export function FolderList({ onFolderSelect }: { onFolderSelect: (folderId: stri
 
   const handleFolderClick = (folderId: string) => {
     const newSelectedFolder = selectedFolder === folderId ? null : folderId;
-    setSelectedFolder(newSelectedFolder);
     onFolderSelect(newSelectedFolder);
   };
 

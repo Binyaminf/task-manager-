@@ -109,8 +109,8 @@ export function TaskCalendar({ tasks, onTaskClick }: TaskCalendarProps) {
             lowPriority: (day) => getHighestPriority(day) === "Low",
           }}
           styles={{
-            highlightWithTasks: { 
-              textDecoration: "underline" 
+            day: {
+              textDecoration: isDayWithTask(date || new Date()) ? "underline" : "none"
             },
             highPriority: { 
               backgroundColor: "rgba(239, 68, 68, 0.1)",

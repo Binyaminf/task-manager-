@@ -49,7 +49,6 @@ export function MainContent({
           <div className={isMobile ? "col-span-1" : "col-span-3 lg:col-span-2"}>
             <section className="bg-white rounded-lg shadow-sm p-4 md:p-6">
               <FolderList 
-                selectedFolder={selectedFolder}
                 onFolderSelect={onFolderSelect}
               />
             </section>
@@ -72,7 +71,7 @@ export function MainContent({
           {!isMobile && (
             <div className="hidden lg:block lg:col-span-3">
               <div className="space-y-6">
-                <PrioritySection tasks={tasks} />
+                <PrioritySection />
                 <AnalyticsSection />
                 <AISection onTaskCreated={onTasksChange || (() => {})} />
               </div>
