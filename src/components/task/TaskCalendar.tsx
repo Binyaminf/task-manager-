@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Task } from "@/types/task";
@@ -98,24 +99,24 @@ export function TaskCalendar({ tasks, onTaskClick }: TaskCalendarProps) {
           selected={date}
           onSelect={setDate}
           className="border rounded-md"
-          modifiersStyles={{
-            selected: { backgroundColor: "var(--accent)" },
-          }}
           modifiers={{
-            highlightWithTasks: (day) => isDayWithTask(day),
+            hasTask: (day) => isDayWithTask(day),
             highPriority: (day) => getHighestPriority(day) === "High",
             mediumPriority: (day) => getHighestPriority(day) === "Medium",
             lowPriority: (day) => getHighestPriority(day) === "Low",
           }}
-          styles={{
-            day: {
-              textDecoration: isDayWithTask(date || new Date()) ? "underline" : "none"
-            }
-          }}
-          classNames={{
-            high_priority: "bg-red-100 font-bold", 
-            medium_priority: "bg-orange-100", 
-            low_priority: "bg-green-100"
+          modifiersStyles={{
+            selected: { backgroundColor: "var(--accent)" },
+            highPriority: { 
+              backgroundColor: "rgba(239, 68, 68, 0.2)",
+              fontWeight: "bold" 
+            },
+            mediumPriority: { 
+              backgroundColor: "rgba(249, 115, 22, 0.2)" 
+            },
+            lowPriority: { 
+              backgroundColor: "rgba(34, 197, 94, 0.2)" 
+            },
           }}
         />
         <div className="mt-4 flex justify-center space-x-4">
