@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Wand2, Sparkles, RotateCw } from "lucide-react";
 import { EnhancedProcessingSteps } from "./ai/EnhancedProcessingSteps";
 import { EnhancedAIAnalysisDisplay } from "./ai/EnhancedAIAnalysisDisplay";
-import { useEnhancedAIProcessing } from "@/hooks/useEnhancedAIProcessing";
+import { useEnhancedAIProcessing } from "@/hooks/ai/useEnhancedAIProcessing";
 import { useToast } from "@/hooks/use-toast";
 
 interface EnhancedAITaskInterfaceProps {

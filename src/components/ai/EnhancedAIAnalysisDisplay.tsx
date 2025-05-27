@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Brain, Target, Calendar, Clock, Folder, TrendingUp } from "lucide-react";
-import { EnhancedAIAnalysis } from "@/hooks/useEnhancedAIProcessing";
+import { EnhancedAIAnalysis } from "@/hooks/ai/types";
 import { Task } from "@/types/task";
 
 interface EnhancedAIAnalysisDisplayProps {
