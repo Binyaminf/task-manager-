@@ -1,9 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-// Fix: Use a more reliable date-fns version for Deno
-import { addDays } from "https://esm.sh/date-fns@2.30.0/addDays";
-import { format as formatDate } from "https://esm.sh/date-fns@2.30.0/format";
+// Fix: Use correct date-fns imports for Deno
+import { addDays, format as formatDate } from "https://esm.sh/date-fns@2.30.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
